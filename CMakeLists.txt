@@ -14,18 +14,31 @@ if(WIN32)
     set(QT_NO_PACKAGE_VERSION_CHECK TRUE)
     set(QT_NO_PACKAGE_VERSION_INCOMPATIBLE_WARNING TRUE)
 
-    # Используем CACHE PATH, чтобы это можно было переопределить из консоли при желании
-    set(STATIC_BASE "/usr/x86_64-w64-mingw32/static" CACHE PATH "Path to static base")
+    # --- Настройки для Windows из-под Linux ---
+    if (CMAKE_CROSSCOMPILING)
+        # Используем CACHE PATH, чтобы это можно было переопределить из консоли при желании
+        set(STATIC_BASE "/usr/x86_64-w64-mingw32/static" CACHE PATH "Path to static base")
 
-    # Сначала ищем в статической Qt, потом в обычном mingw
-    set(CMAKE_FIND_ROOT_PATH "${STATIC_BASE};/usr/x86_64-w64-mingw32")
+        # Сначала ищем в статической Qt, потом в обычном mingw
+        set(CMAKE_FIND_ROOT_PATH "${STATIC_BASE};/usr/x86_64-w64-mingw32")
+    # --- Настройки для Windows из-под Windows ---
+    else()
+        if(EXISTS "C:/msys64")
+            # Используем CACHE PATH, чтобы это можно было переопределить из консоли при желании
+            set(STATIC_BASE "C:/msys64/mingw64/qt6-static" CACHE PATH "Path to static base")
 
+            # Сначала ищем в статической Qt, потом в обычном mingw
+            set(CMAKE_FIND_ROOT_PATH "${STATIC_BASE};C:/msys64/mingw64")
+        endif()
+    endif()
+    
     set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
     set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
     set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
     set(CMAKE_PREFIX_PATH "${STATIC_BASE}")
     set(Qt6_DIR "${STATIC_BASE}/lib/cmake/Qt6")
+
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
     # Линковка системных библиотек компилятора
@@ -38,12 +51,20 @@ if(WIN32)
     # --- Настройки для Windows ---
     find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core)
 
+    # --- Настройки для Windows из-под Linux ---
+    if(CMAKE_CROSSCOMPILING)
+        set(LIB_PATH "/usr/x86_64-w64-mingw32/lib")
+    # --- Настройки для Windows из-под Windows ---
+    else()
+        set(LIB_PATH "C:/msys64/mingw64/lib")
+    endif()
+    
     # Принудительно только статические библиотеки
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
     # 1. Harfbuzz + Graphite2
-    find_library(HARFBUZZ_STATIC NAMES harfbuzz PATHS /usr/x86_64-w64-mingw32/lib NO_DEFAULT_PATH REQUIRED)
-    find_library(GRAPHITE2 NAMES graphite2 PATHS /usr/x86_64-w64-mingw32/lib NO_DEFAULT_PATH REQUIRED)
+    find_library(HARFBUZZ_STATIC NAMES harfbuzz PATHS "${LIB_PATH}" NO_DEFAULT_PATH REQUIRED)
+    find_library(GRAPHITE2 NAMES graphite2 PATHS "${LIB_PATH}" NO_DEFAULT_PATH REQUIRED)
 
     if(TARGET harfbuzz::harfbuzz)
         set_target_properties(harfbuzz::harfbuzz PROPERTIES
@@ -54,12 +75,12 @@ if(WIN32)
             INTERFACE_LINK_LIBRARIES  "${GRAPHITE2}"
         )
     endif()
-
+        
     # 2. Freetype + Brotli + BZip2 + ZSTD
-    find_library(BROTLIDEC NAMES brotlidec PATHS /usr/x86_64-w64-mingw32/lib NO_DEFAULT_PATH REQUIRED)
-    find_library(BROTLI_COMMON NAMES brotlicommon PATHS /usr/x86_64-w64-mingw32/lib NO_DEFAULT_PATH REQUIRED)
-    find_library(BZ2 NAMES bz2 PATHS /usr/x86_64-w64-mingw32/lib NO_DEFAULT_PATH REQUIRED)
-    find_library(ZSTD_STATIC NAMES zstd PATHS /usr/x86_64-w64-mingw32/lib NO_DEFAULT_PATH REQUIRED)
+    find_library(BROTLIDEC NAMES brotlidec PATHS "${LIB_PATH}" NO_DEFAULT_PATH REQUIRED)
+    find_library(BROTLI_COMMON NAMES brotlicommon PATHS "${LIB_PATH}" NO_DEFAULT_PATH REQUIRED)
+    find_library(BZ2 NAMES bz2 PATHS "${LIB_PATH}" NO_DEFAULT_PATH REQUIRED)
+    find_library(ZSTD_STATIC NAMES zstd PATHS "${LIB_PATH}" NO_DEFAULT_PATH REQUIRED)
 
     if(TARGET Freetype::Freetype)
         set_target_properties(Freetype::Freetype PROPERTIES INTERFACE_LINK_LIBRARIES "${HARFBUZZ_STATIC};${BROTLIDEC};${BROTLI_COMMON};${BZ2};${ZSTD_STATIC}")
@@ -96,6 +117,12 @@ if(WIN32)
 
     # Линковка (порядок важен для статических библиотек!)
     target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets Qt6::Gui Qt6::Core)
+    
+    # --- Настройки для Windows из-под Windows ---
+    if (NOT CMAKE_CROSSCOMPILING)
+        # Добавляем системные зависимости libtiff и harfbuzz
+        set(CMAKE_CXX_STANDARD_LIBRARIES "-llzma -llerc -ldeflate -ljbig -ljpeg -lrpcrt4 ${CMAKE_CXX_STANDARD_LIBRARIES}")
+    endif()
 
     # Финализация (обязательна для Qt6 на Windows)
     qt_finalize_executable(${EXE_NAME})
