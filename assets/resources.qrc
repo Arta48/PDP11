@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource>
+        <file alias="icon.png">icon.png</file>
+        <file alias="segmdl2.ttf">segmdl2.ttf</file>
+    </qresource>
+</RCC>
