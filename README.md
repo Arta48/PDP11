@@ -1,6 +1,6 @@
 # 🖥️ Command System Emulator PDP-11
 
-![Linux Dark Mode](assets/linux_dark.png)
+![Linux Dark Mode](assets/pictures/linux_dark.png)
 
 ![C++17](https://img.shields.io/badge/C++-17-blue.svg)
 ![Qt6](https://img.shields.io/badge/Qt-6.0+-green.svg)
@@ -28,7 +28,7 @@
 *   **Справочная система:** Встроенная контекстная справка по командам и прилагаемый подробный справочник в формате PDF.
 *   **Сохранение и загрузка:** Поддержка импорта и экспорта программ в формате `.pdp`.
 
-![Windows Light Mode](assets/windows_light.png)
+![Windows Light Mode](assets/pictures/windows_light.png)
 
 ---
 
