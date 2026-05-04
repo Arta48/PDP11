@@ -58,12 +58,21 @@ The `Programs/` folder contains ready-made programs for testing the emulator (de
    ```bash
    git clone https://github.com/Arta48/PDP11.git
    cd PDP11
-   sh compile.sh
    ```
-3. Run the emulator:
-   ```bash
-   ./build/PDP11
-   ```
+
+**Option A: Run portable version**
+You can quickly compile and run the emulator without system integration:
+```bash
+sh compile.sh
+./build/PDP11
+```
+
+**Option B: System-wide Installation (Recommended)**
+The project includes an automated packaging script that builds and installs the emulator as a native Arch Linux package. It generates a `.desktop` shortcut, scales icons, and places the executable in your system path.
+```bash
+sh setup_package.sh
+```
+*After installation, you can launch the emulator directly from your Desktop Environment's application menu or by simply typing `pdp11` in the terminal. To uninstall, run `sudo pacman -R pdp11`.*
 
 ### 🪟 Build on Windows
 
