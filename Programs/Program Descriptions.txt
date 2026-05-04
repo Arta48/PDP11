@@ -1,266 +1,267 @@
-1. Программа «Hello World» (Вывод строки на экран)
+1. Program "Hello World" (Printing a string to the screen)
 
-Логика: Программа использует регистр R0 как указатель на массив символов (строку). В цикле она побайтово читает символы из памяти. Если прочитан нуль-терминатор (0), программа останавливается. Если прочитан символ, программа ожидает готовности дисплея (бит 7 регистра 177564) и отправляет символ в регистр данных дисплея (177566), после чего переходит к следующему символу.
+Logic: The program uses the R0 register as a pointer to an array of characters (a string). In a loop, it reads characters from memory byte by byte. If a null terminator (0) is read, the program stops. If a character is read, the program waits for the display to be ready (bit 7 of register 177564) and sends the character to the display data register (177566), after which it moves to the next character.
 
-Адрес   Данные  Мнемоника           Описание
-001000  012700  MOV #1034, R0       Загрузка базового адреса строки в R0
-001002  001034                      (адрес начала строки)
-001004  112001  MOVB (R0)+, R1      Чтение символа в R1 и смещение указателя
-001006  105701  TSTB R1             Проверка прочитанного символа на 0
-001010  001407  BEQ 1030            Если символ = 0 (конец), переход к HALT
-001012  032737  BIT #200, @#177564  Проверка флага готовности дисплея (бит 7)
-001014  000200                      (маска бита 7)
-001016  177564                      (адрес регистра состояния дисплея)
-001020  001774  BEQ 1012            Если дисплей не готов, ждём (зацикливание)
-001022  110137  MOVB R1, @#177566   Отправка символа в регистр данных дисплея
-001024  177566                      (адрес регистра данных дисплея)
-001026  000766  BR 1004             Возврат к чтению следующего символа
-001030  000000  HALT                Конец программы
-...     ...
+Address  Data    Mnemonic            Description
+001000   012700  MOV #1034, R0       Load the base address of the string into R0
+001002   001034                      (address of the beginning of the string)
+001004   112001  MOVB (R0)+, R1      Read a character into R1 and increment the pointer
+001006   105701  TSTB R1             Check the read character for 0
+001010   001407  BEQ 1030            If the character = 0 (end), branch to HALT
+001012   032737  BIT #200, @#177564  Check the display ready flag (bit 7)
+001014   000200                      (mask of bit 7)
+001016   177564                      (address of the display status register)
+001020   001774  BEQ 1012            If the display is not ready, wait (loop)
+001022   110137  MOVB R1, @#177566   Send the character to the display data register
+001024   177566                      (address of the display data register)
+001026   000766  BR 1004             Return to reading the next character
+001030   000000  HALT                End of program
+...      ...
 
-Массив текста (Адрес 1034)
+Text array (Address 1034)
 
-Адрес   Данные  Мнемоника  Описание
-001034  062510             Коды символов 'e' и 'H' ("He")
-001036  066154             Коды символов 'l' и 'l' ("ll")
-001040  020157             Коды символов ' ' и 'o' ("o ")
-001042  067527             Коды символов 'W' и 'o' ("Wo")
-001044  066162             Коды символов 'r' и 'l' ("rl")
-001046  020544             Коды символов 'd' и '!' ("d!")
-001050  000000             (Нуль-терминатор)
-
-
-2. Программа «Keyboard» (Эхо-ввод с выходом по 'q')
-
-Логика: Программа опрашивает клавиатуру. При нажатии клавиши символ читается, затем программа ждёт готовности дисплея и выводит этот же символ на экран (эхо-печать). После этого введённый символ сравнивается с латинской буквой 'q' (восьмеричный код 161). Если введено 'q', программа завершается, если нет — уходит на ожидание нового ввода.
-
-Адрес   Данные  Мнемоника           Описание
-001000  032737  BIT #200, @#177560  Проверка флага готовности клавиатуры
-001002  000200                      (маска бита 7)
-001004  177560                      (регистр состояния клавиатуры)
-001006  001774  BEQ 1000            Если клавиша не нажата, ждем
-001010  113701  MOVB @#177562, R1   Чтение нажатого символа в R1
-001012  177562                      (регистр данных клавиатуры)
-001014  032737  BIT #200, @#177564  Проверка готовности дисплея
-001016  000200                      (маска бита 7)
-001020  177564                      (регистр состояния дисплея)
-001022  001774  BEQ 1014            Если дисплей занят, ждем
-001024  110137  MOVB R1, @#177566   Вывод символа на экран
-001026  177566                      (регистр данных дисплея)
-001030  120127  CMPB R1, #161       Сравнение введенного символа с 'q'
-001032  000161                      (код символа 'q')
-001034  001401  BEQ 1040            Если введено 'q', выходим из цикла
-001036  000760  BR 1000             Иначе возвращаемся к началу (опрос клавиатуры)
-001040  000000  HALT                Конец программы
+Address  Data    Mnemonic   Description
+001034   062510             Character codes 'e' and 'H' ("He")
+001036   066154             Character codes 'l' and 'l' ("ll")
+001040   020157             Character codes ' ' and 'o' ("o ")
+001042   067527             Character codes 'W' and 'o' ("Wo")
+001044   066162             Character codes 'r' and 'l' ("rl")
+001046   020544             Character codes 'd' and '!' ("d!")
+001050   000000             (Null terminator)
 
 
-3. Программа «Print» (Вывод строки на принтер)
+2. Program "Keyboard" (Echo input with exit on 'q')
 
-Логика: Алгоритм полностью идентичен «Hello World», но адреса устройства вывода заменены на порты физического устройства печати (принтера): 177514 (статус) и 177516 (данные).
+Logic: The program polls the keyboard. When a key is pressed, the character is read, then the program waits for the display to be ready and prints the same character to the screen (echo printing). After that, the entered character is compared with the Latin letter 'q' (octal code 161). If 'q' is entered, the program terminates; if not, it loops back to wait for new input.
 
-Адрес   Данные  Мнемоника           Описание
-001000  012700  MOV #1034, R0       Загрузка базового адреса строки в R0
-001002  001034                      (адрес)
-001004  112001  MOVB (R0)+, R1      Чтение символа в R1 и инкремент
-001006  105701  TSTB R1             Проверка на 0
-001010  001407  BEQ 1030            Если 0, переход к завершению
-001012  032737  BIT #200, @#177514  Проверка готовности ПРИНТЕРА
-001014  000200                      (маска бита 7)
-001016  177514                      (регистр состояния принтера)
-001020  001774  BEQ 1012            Если принтер занят, ждем
-001022  110137  MOVB R1, @#177516   Отправка символа в принтер
-001024  177516                      (регистр данных принтера)
-001026  000766  BR 1004             Возврат к чтению следующего символа
-001030  000000  HALT                Конец программы
-...     ...
-
-Массив текста (Адрес 1034)
-
-Адрес   Данные  Мнемоника  Описание
-001034  051120             Коды символов 'P' и 'R' ("PR")
-001036  047111             Коды символов 'I' и 'N' ("IN")
-001040  020524             Коды символов 'T' и '!' ("T!")
-001050  000000             (Нуль-терминатор)
+Address  Data    Mnemonic            Description
+001000   032737  BIT #200, @#177560  Check the keyboard ready flag
+001002   000200                      (mask of bit 7)
+001004   177560                      (keyboard status register)
+001006   001774  BEQ 1000            If no key is pressed, wait
+001010   113701  MOVB @#177562, R1   Read the pressed character into R1
+001012   177562                      (keyboard data register)
+001014   032737  BIT #200, @#177564  Check display readiness
+001016   000200                      (mask of bit 7)
+001020   177564                      (display status register)
+001022   001774  BEQ 1014            If the display is busy, wait
+001024   110137  MOVB R1, @#177566   Print the character to the screen
+001026   177566                      (display data register)
+001030   120127  CMPB R1, #161       Compare the entered character with 'q'
+001032   000161                      (code of character 'q')
+001034   001401  BEQ 1040            If 'q' is entered, exit the loop
+001036   000760  BR 1000             Otherwise, return to the beginning (keyboard polling)
+001040   000000  HALT                End of program
 
 
-4. Программа «Single-digit Adder» (Сложение двух однозначных чисел)
+3. Program "Print" (Printing a string to the printer)
 
-Логика: Программа считывает 3 символа с клавиатуры: цифру, знак (например, +) и вторую цифру. Выводит знак =. Для получения числового значения складывает ASCII-коды двух цифр, а затем корректирует результат: вычитает 0140 (сумма кодов двух символов '0'). Если результат меньше 10 (в восьмеричной системе 011), переводит его обратно в ASCII и печатает. Если результат больше или равен 10, сначала печатается символ '1', из суммы вычитается 10 (012), остаток переводится в ASCII и печатается.
+Logic: The algorithm is completely identical to "Hello World", but the output device addresses are replaced with the ports of the physical printing device (printer): 177514 (status) and 177516 (data).
 
-Адрес   Данные  Мнемоника       Описание
-001000  012706  MOV #1000, R6   Устанавливаем дно стека в 1000
-001002  001000                  (адрес дна стека)
-001004  004737  JSR R7, @#1100  Вызов подпрограммы ввода 1-й цифры
-001006  001100                  (адрес П / П ввода)
-001010  010002  MOV R0, R2      Сохранение 1-й цифры в R2
-001012  004737  JSR R7, @#1100  Вызов П / П ввода (считывание знака '+')
-001014  001100
-001016  004737  JSR R7, @#1100  Вызов П / П ввода 2-й цифры
-001020  001100
-001022  010003  MOV R0, R3      Сохранение 2-й цифры в R3
-001024  012700  MOV #75, R0     Помещение кода знака '=' в R0
-001026  000075                  (код символа '=')
-001030  004737  JSR R7, @#1200  Печать знака '=' (П / П вывода)
-001032  001200                  (адрес П / П вывода)
-001034  060302  ADD R3, R2      Складываем коды цифр (R2 = R2 + R3)
-001036  162702  SUB #140, R2    Вычитаем удвоенный код '0' (060 + 060)
-001040  000140                  (число 0140)
-001042  020227  CMP R2, #11     Проверяем, превышает ли сумма 9
-001044  000011                  (число 9 в восьмеричной системе)
-001046  003406  BLE 1064        Если сумма <= 9, идем к выводу цифры
-001050  012700  MOV #61, R0     Иначе: готовим символ '1'
-001052  000061                  (код символа '1')
-001054  004737  JSR R7, @#1200  Печатаем десяток ('1')
-001056  001200
-001060  162702  SUB #12, R2     Вычитаем 10 из суммы (012 восьмеричное)
-001062  000012
-001064  062702  ADD #60, R2     Конвертируем остаток суммы обратно в ASCII
-001066  000060                  (код символа '0')
-001070  010200  MOV R2, R0      Переносим цифру в R0 для печати
-001072  004737  JSR R7, @#1200  Печатаем цифру единиц
-001074  001200
-001076  000000  HALT            Конец программы
-...     ...
+Address  Data    Mnemonic            Description
+001000   012700  MOV #1034, R0       Load the base address of the string into R0
+001002   001034                      (address)
+001004   112001  MOVB (R0)+, R1      Read character into R1 and increment
+001006   105701  TSTB R1             Check for 0
+001010   001407  BEQ 1030            If 0, branch to finish
+001012   032737  BIT #200, @#177514  Check PRINTER readiness
+001014   000200                      (mask of bit 7)
+001016   177514                      (printer status register)
+001020   001774  BEQ 1012            If the printer is busy, wait
+001022   110137  MOVB R1, @#177516   Send the character to the printer
+001024   177516                      (printer data register)
+001026   000766  BR 1004             Return to reading the next character
+001030   000000  HALT                End of program
+...      ...
 
-Подпрограмма ввода символа (Адрес 1100)
+Text array (Address 1034)
 
-Адрес   Данные  Мнемоника           Описание
-001100  032737  BIT #200, @#177560  Проверяем флаг готовности клавиатуры (бит 7)
-001102  000200                      (маска бита 7)
-001104  177560                      (регистр состояния клавиатуры)
-001106  001774  BEQ 1100            Если клавиатура не готова (флаг = 0), зацикливаемся
-001110  113700  MOVB @#177562, R0   Считываем нажатый символ в регистр R0
-001112  177562                      (регистр данных клавиатуры)
-001114  004737  JSR R7, @#1200      Вызываем подпрограмму вывода (эхо-печать символа)
-001116  001200                      (адрес П / П вывода)
-001120  000207  RTS R7              Возврат из подпрограммы
-...     ...
-
-Подпрограмма вывода символа (Адрес 001200)
-Адрес   Данные  Мнемоника           Описание
-001200  032737  BIT #200, @#177564  Проверяем флаг готовности дисплея
-001202  000200                      (маска бита 7)
-001204  177564                      (регистр состояния дисплея)
-001206  001774  BEQ 1200            Если дисплей занят, ждем
-001210  110037  MOVB R0, @#177566   Отправляем символ из R0 на экран
-001212  177566                      (регистр данных дисплея)
-001214  000207  RTS R7              Возврат из подпрограммы
+Address  Data    Mnemonic   Description
+001034   051120             Character codes 'P' and 'R' ("PR")
+001036   047111             Character codes 'I' and 'N' ("IN")
+001040   020524             Character codes 'T' and '!' ("T!")
+001050   000000             (Null terminator)
 
 
-5. Программа «16-bit Integer Calculator»
+4. Program "Single-digit Adder" (Addition of two single-digit numbers)
 
-Логика: Полноценный калькулятор. Состоит из главного модуля и вспомогательных подпрограмм (П / П). П / П 1200 читает символы и формирует многозначное число до тех пор, пока не встретит нечисловой символ (оператор). Главный блок вызывает П / П 1200 для получения первого числа и оператора, сохраняет их. Вызывает П / П 1200 ещё раз для получения второго числа. Анализирует оператор: если это минус, производит вычитание, если плюс — сложение. Результат помещается в R1, после чего вызывается П / П 1300, которая переводит бинарное значение в ASCII путем последовательного деления (вычитания массива базовых делителей 10000, 1000, 100, 10, 1) и выводит его на экран.
-Главный блок (управление)
+Logic: The program reads 3 characters from the keyboard: a digit, a sign (for example, +), and a second digit. It prints the = sign. To obtain the numerical value, it adds the ASCII codes of the two digits, and then corrects the result: it subtracts 0140 (the sum of the codes of two '0' characters). If the result is less than 10 (011 in the octal system), it converts it back to ASCII and prints it. If the result is greater than or equal to 10, the character '1' is printed first, 10 (012) is subtracted from the sum, the remainder is converted to ASCII and printed.
 
-Адрес   Данные  Мнемоника       Описание
-001000  012706  MOV #1000, R6   Устанавливаем дно стека в 1000
-001002  001000                  (адрес дна стека)
-001004  004737  JSR R7, @#1200  Ввод 1-го числа (число -> R1, знак -> R0)
-001006  001200                  (адрес П / П ввода числа)
-001010  010103  MOV R1, R3      Сохраняем 1-е число в R3
-001012  010004  MOV R0, R4      Сохраняем введённый знак операции в R4
-001014  004737  JSR R7, @#1200  Ввод 2-го числа (результат в R1)
-001016  001200
-001020  120427  CMPB R4, #55    Проверяем, был ли знак '-'
-001022  000055                  (код символа '-')
-001024  001402  BEQ 1032        Если '-', идём на вычитание
-001026  060103  ADD R1, R3      Иначе сложение: R3 = R3 + R1
-001030  000401  BR 1034         Обходим блок вычитания
-001032  160103  SUB R1, R3      Вычитание: R3 = R3 - R1
-001034  010301  MOV R3, R1      Переносим результат в R1 для вывода
-001036  004737  JSR R7, @#1300  Вызов П / П вывода 16-битного числа
-001040  001300                  (адрес П / П вывода)
-001042  000000  HALT            Остановка
-...     ...
+Address  Data    Mnemonic        Description
+001000   012706  MOV #1000, R6   Set the bottom of the stack to 1000
+001002   001000                  (address of the bottom of the stack)
+001004   004737  JSR R7, @#1100  Call the subroutine for inputting the 1st digit
+001006   001100                  (address of the input subroutine)
+001010   010002  MOV R0, R2      Save the 1st digit in R2
+001012   004737  JSR R7, @#1100  Call input subroutine (reading the '+' sign)
+001014   001100
+001016   004737  JSR R7, @#1100  Call subroutine for inputting the 2nd digit
+001020   001100
+001022   010003  MOV R0, R3      Save the 2nd digit in R3
+001024   012700  MOV #75, R0     Put the code of the '=' sign into R0
+001026   000075                  (code of character '=')
+001030   004737  JSR R7, @#1200  Print the '=' sign (output subroutine)
+001032   001200                  (address of the output subroutine)
+001034   060302  ADD R3, R2      Add the digit codes (R2 = R2 + R3)
+001036   162702  SUB #140, R2    Subtract the doubled code of '0' (060 + 060)
+001040   000140                  (number 0140)
+001042   020227  CMP R2, #11     Check if the sum exceeds 9
+001044   000011                  (number 9 in the octal system)
+001046   003406  BLE 1064        If the sum <= 9, go to digit output
+001050   012700  MOV #61, R0     Otherwise: prepare the character '1'
+001052   000061                  (code of character '1')
+001054   004737  JSR R7, @#1200  Print the tens ('1')
+001056   001200
+001060   162702  SUB #12, R2     Subtract 10 from the sum (012 octal)
+001062   000012
+001064   062702  ADD #60, R2     Convert the remainder of the sum back to ASCII
+001066   000060                  (code of character '0')
+001070   010200  MOV R2, R0      Move the digit to R0 for printing
+001072   004737  JSR R7, @#1200  Print the units digit
+001074   001200
+001076   000000  HALT            End of program
+...      ...
 
-Подпрограмма ввода символа (Адрес 1100)
+Character input subroutine (Address 1100)
 
-Адрес   Данные  Мнемоника           Описание
-001100  032737  BIT #200, @#177560  Опрос клавиатуры
-001102  000200
-001104  177560
-001106  001774  BEQ 1100            Если пусто, ждём
-001110  113700  MOVB @#177562, R0   Считываем символ в R0
-001112  177562
-001114  032737  BIT #200, @#177564  Опрос дисплея (Точка входа для вывода!)
-001116  000200
-001120  177564
-001122  001774  BEQ 1114            Если дисплей занят, ждём
-001124  110037  MOVB R0, @#177566   Отправка символа из R0 на экран
-001126  177566
-001130  000207  RTS R7              Возврат из подпрограммы
-...     ...
+Address  Data    Mnemonic            Description
+001100   032737  BIT #200, @#177560  Check the keyboard ready flag (bit 7)
+001102   000200                      (mask of bit 7)
+001104   177560                      (keyboard status register)
+001106   001774  BEQ 1100            If the keyboard is not ready (flag = 0), loop
+001110   113700  MOVB @#177562, R0   Read the pressed character into register R0
+001112   177562                      (keyboard data register)
+001114   004737  JSR R7, @#1200      Call the output subroutine (echo printing of the character)
+001116   001200                      (address of the output subroutine)
+001120   000207  RTS R7              Return from the subroutine
+...      ...
 
-Подпрограмма ввода числа (Адрес 1200)
+Character output subroutine (Address 001200)
+Address  Data    Mnemonic            Description
+001200   032737  BIT #200, @#177564  Check the display ready flag
+001202   000200                      (mask of bit 7)
+001204   177564                      (display status register)
+001206   001774  BEQ 1200            If the display is busy, wait
+001210   110037  MOVB R0, @#177566   Send the character from R0 to the screen
+001212   177566                      (display data register)
+001214   000207  RTS R7              Return from the subroutine
 
-Адрес   Данные  Мнемоника        Описание
-001200  005001  CLR R1           Обнуляем аккумулятор числа
-001202  004737  JSR R7, @#1100   Читаем один символ (попадает в R0)
-001204  001100
-001206  120027  CMPB R0, #60     Сравниваем с символом '0'
-001210  000060
-001212  002415  BLT 1246         Если код < '0' (это знак / ввод), конец парсинга
-001214  120027  CMPB R0, #71     Сравниваем с символом '9'
-001216  000071
-001220  003012  BGT 1246         Если код > '9', конец парсинга
-001222  010102  MOV R1, R2       Умножаем текущее число на 10... (копируем)
-001224  006301  ASL R1           Умножение на 2
-001226  006301  ASL R1           Умножение на 4
-001230  060201  ADD R2, R1       + исходное = Умножение на 5
-001232  006301  ASL R1           Умножение на 10
-001234  010002  MOV R0, R2       Берём введенный ASCII символ
-001236  042702  BIC #177760, R2  Отсекаем всё, кроме цифры (ASCII '3' -> int 3)
-001240  177760
-001242  060201  ADD R2, R1       Прибавляем цифру к числу
-001244  000756  BR 1202          Возврат на чтение следующего символа
-001246  000207  RTS R7           Возврат из подпрограммы
-...     ...
 
-Подпрограмма вывода числа (Адрес 1300)
+5. Program "16-bit Integer Calculator"
 
-Адрес   Данные Мнемоника       Описание
-001300  005701 TST R1          Проверяем число на отрицательность
-001302  002005 BGE 1316        Если >= 0, пропускаем вывод минуса
-001304  012700 MOV #55, R0     Символ '-' в R0
-001306  000055
-001310  004737 JSR R7, @#1114  Печатаем '-'
-001312  001114
-001314  005401 NEG R1          Делаем число положительным
-001316  010102 MOV R1, R2      Переносим число в R2 для обработки
-001320  012703 MOV #1500, R3   Инициализируем указатель массива делителей
-001322  001500
-001324  005004 CLR R4 R4 = 0   (флаг того, что цифры еще не выводились)
-001326  012305 MOV (R3)+, R5   Берём делитель (10000, 1000...) в R5
-001330  005705 TST R5          Конец массива делителей?
-001332  001423 BEQ 1402        Если да, завершаем вывод
-001334  005000 CLR R0          Обнуляем счётчик (будущая цифра разряда)
-001336  160502 SUB R5, R2      Вычитаем делитель из остатка числа
-001340  002402 BLT 1346        Если результат отрицательный, стоп вычитание
-001342  005200 INC R0          Увеличиваем цифру
-001344  000774 BR 1336         Повторяем вычитание
-001346  060502 ADD R5, R2      Возвращаем перевычтенный остаток
-001350  005700 TST R0          Полученная цифра = 0?
-001352  001005 BNE 1366        Если не ноль, идём на печать
-001354  005704 TST R4          Были ли напечатаны предыдущие разряды?
-001356  001003 BNE 1366        Если да, то промежуточный ноль печатаем
-001360  020527 CMP R5, #1      Это разряд единиц (последний)?
-001362  000001
-001364  001005 BNE 1400        Если нет, пропускаем незначащий нуль
-001366  005204 INC R4          Ставим флаг: вывод начался (R4 > 0)
-001370  062700 ADD #60, R0     Конвертируем цифру в ASCII
-001372  000060
-001374  004737 JSR R7, @#1114  Печатаем цифру
-001376  001114
-001400  000752 BR 1326         Переходим к следующему делителю (уменьшение порядка)
-001402  000207 RTS R7          Возврат
-...     ...
+Logic: A fully-featured calculator. It consists of a main module and auxiliary subroutines. Subroutine 1200 reads characters and forms a multi-digit number until it encounters a non-numeric character (operator). The main block calls subroutine 1200 to get the first number and the operator, and saves them. It calls subroutine 1200 again to get the second number. It analyzes the operator: if it is a minus, it performs subtraction; if a plus, addition. The result is placed in R1, after which subroutine 1300 is called, which converts the binary value into ASCII by successive division (subtracting an array of base divisors 10000, 1000, 100, 10, 1) and prints it to the screen.
 
-Массив делителей (Адрес 1500)
+Main block (control)
 
-Адрес   Данные  Мнемоника  Описание
-001500  023420             Делитель: 10000
-001502  001750             Делитель: 1000
-001504  000144             Делитель: 100
-001506  000012             Делитель: 10
-001510  000001             Делитель: 1
-001512  000000             (Нуль-терминатор)
+Address  Data    Mnemonic        Description
+001000   012706  MOV #1000, R6   Set the bottom of the stack to 1000
+001002   001000                  (address of the bottom of the stack)
+001004   004737  JSR R7, @#1200  Input the 1st number (number -> R1, sign -> R0)
+001006   001200                  (address of the number input subroutine)
+001010   010103  MOV R1, R3      Save the 1st number in R3
+001012   010004  MOV R0, R4      Save the entered operation sign in R4
+001014   004737  JSR R7, @#1200  Input the 2nd number (result in R1)
+001016   001200
+001020   120427  CMPB R4, #55    Check if the sign was '-'
+001022   000055                  (code of character '-')
+001024   001402  BEQ 1032        If '-', go to subtraction
+001026   060103  ADD R1, R3      Otherwise addition: R3 = R3 + R1
+001030   000401  BR 1034         Bypass the subtraction block
+001032   160103  SUB R1, R3      Subtraction: R3 = R3 - R1
+001034   010301  MOV R3, R1      Move the result to R1 for output
+001036   004737  JSR R7, @#1300  Call the 16-bit number output subroutine
+001040   001300                  (address of the output subroutine)
+001042   000000  HALT            Stop
+...      ...
+
+Character input subroutine (Address 1100)
+
+Address  Data    Mnemonic            Description
+001100   032737  BIT #200, @#177560  Polling the keyboard
+001102   000200
+001104   177560
+001106   001774  BEQ 1100            If empty, wait
+001110   113700  MOVB @#177562, R0   Read the character into R0
+001112   177562
+001114   032737  BIT #200, @#177564  Polling the display (Entry point for output!)
+001116   000200
+001120   177564
+001122   001774  BEQ 1114            If the display is busy, wait
+001124   110037  MOVB R0, @#177566   Send the character from R0 to the screen
+001126   177566
+001130   000207  RTS R7              Return from the subroutine
+...      ...
+
+Number input subroutine (Address 1200)
+
+Address  Data    Mnemonic         Description
+001200   005001  CLR R1           Clear the number accumulator
+001202   004737  JSR R7, @#1100   Read one character (goes into R0)
+001204   001100
+001206   120027  CMPB R0, #60     Compare with the character '0'
+001210   000060
+001212   002415  BLT 1246         If code < '0' (this is a sign / input), end of parsing
+001214   120027  CMPB R0, #71     Compare with the character '9'
+001216   000071
+001220   003012  BGT 1246         If code > '9', end of parsing
+001222   010102  MOV R1, R2       Multiply the current number by 10... (copying)
+001224   006301  ASL R1           Multiply by 2
+001226   006301  ASL R1           Multiply by 4
+001230   060201  ADD R2, R1       + original = Multiply by 5
+001232   006301  ASL R1           Multiply by 10
+001234   010002  MOV R0, R2       Take the entered ASCII character
+001236   042702  BIC #177760, R2  Cut off everything except the digit (ASCII '3' -> int 3)
+001240   177760
+001242   060201  ADD R2, R1       Add the digit to the number
+001244   000756  BR 1202          Return to reading the next character
+001246   000207  RTS R7           Return from the subroutine
+...      ...
+
+Number output subroutine (Address 1300)
+
+Address  Data    Mnemonic        Description
+001300   005701  TST R1          Check the number for negativity
+001302   002005  BGE 1316        If >= 0, skip the minus output
+001304   012700  MOV #55, R0     Character '-' in R0
+001306   000055
+001310   004737  JSR R7, @#1114  Print '-'
+001312   001114
+001314   005401  NEG R1          Make the number positive
+001316   010102  MOV R1, R2      Move the number to R2 for processing
+001320   012703  MOV #1500, R3   Initialize the divisor array pointer
+001322   001500
+001324   005004  CLR R4          R4 = 0 (flag that digits have not yet been printed)
+001326   012305  MOV (R3)+, R5   Take the divisor (10000, 1000...) into R5
+001330   005705  TST R5          End of the divisor array?
+001332   001423  BEQ 1402        If yes, finish the output
+001334   005000  CLR R0          Clear the counter (future place digit)
+001336   160502  SUB R5, R2      Subtract the divisor from the remainder of the number
+001340   002402  BLT 1346        If the result is negative, stop subtraction
+001342   005200  INC R0          Increment the digit
+001344   000774  BR 1336         Repeat subtraction
+001346   060502  ADD R5, R2      Return the over-subtracted remainder
+001350   005700  TST R0          Resulting digit = 0?
+001352   001005  BNE 1366        If not zero, go to print
+001354   005704  TST R4          Have the previous digits been printed?
+001356   001003  BNE 1366        If yes, print the intermediate zero
+001360   020527  CMP R5, #1      Is this the units digit (the last one)?
+001362   000001
+001364   001005  BNE 1400        If no, skip the insignificant zero
+001366   005204  INC R4          Set flag: output has started (R4 > 0)
+001370   062700  ADD #60, R0     Convert the digit to ASCII
+001372   000060
+001374   004737  JSR R7, @#1114  Print the digit
+001376   001114
+001400   000752  BR 1326         Go to the next divisor (decrease in magnitude)
+001402   000207  RTS R7          Return
+...      ...
+
+Array of divisors (Address 1500)
+
+Address  Data    Mnemonic   Description
+001500   023420             Divisor: 10000
+001502   001750             Divisor: 1000
+001504   000144             Divisor: 100
+001506   000012             Divisor: 10
+001510   000001             Divisor: 1
+001512   000000             (Null terminator)
