@@ -147,9 +147,9 @@ Address  Data    Mnemonic            Description
 001214   000207  RTS R7              Return from the subroutine
 
 
-5. Program "16-bit Integer Calculator"
+5. Program "16-bit Adder and Subtractor"
 
-Logic: A fully-featured calculator. It consists of a main module and auxiliary subroutines. Subroutine 1200 reads characters and forms a multi-digit number until it encounters a non-numeric character (operator). The main block calls subroutine 1200 to get the first number and the operator, and saves them. It calls subroutine 1200 again to get the second number. It analyzes the operator: if it is a minus, it performs subtraction; if a plus, addition. The result is placed in R1, after which subroutine 1300 is called, which converts the binary value into ASCII by successive division (subtracting an array of base divisors 10000, 1000, 100, 10, 1) and prints it to the screen.
+Logic: A basic calculator for 16-bit numbers. The main module calls subroutine 1200 twice to input numbers and saves the operation sign. Addition and subtraction are performed using hardware processor instructions. The resulting binary value in R1 is passed to subroutine 1300, which converts it to decimal ASCII format by successively subtracting powers of ten from an array at address 1600. The final digits are printed to the screen via the system subroutine at address 1500.
 
 Main block (control)
 
@@ -165,103 +165,251 @@ Address  Data    Mnemonic        Description
 001020   120427  CMPB R4, #55    Check if the sign was '-'
 001022   000055                  (code of character '-')
 001024   001402  BEQ 1032        If '-', go to subtraction
-001026   060103  ADD R1, R3      Otherwise addition: R3 = R3 + R1
+001026   060103  ADD R1, R3      Else addition: R3 = R3 + R1
 001030   000401  BR 1034         Bypass the subtraction block
 001032   160103  SUB R1, R3      Subtraction: R3 = R3 - R1
 001034   010301  MOV R3, R1      Move the result to R1 for output
-001036   004737  JSR R7, @#1300  Call the 16-bit number output subroutine
+001036   004737  JSR R7, @#1300  Call number output subroutine
 001040   001300                  (address of the output subroutine)
 001042   000000  HALT            Stop
-...      ...
-
-Character input subroutine (Address 1100)
-
-Address  Data    Mnemonic            Description
-001100   032737  BIT #200, @#177560  Polling the keyboard
-001102   000200
-001104   177560
-001106   001774  BEQ 1100            If empty, wait
-001110   113700  MOVB @#177562, R0   Read the character into R0
-001112   177562
-001114   032737  BIT #200, @#177564  Polling the display (Entry point for output!)
-001116   000200
-001120   177564
-001122   001774  BEQ 1114            If the display is busy, wait
-001124   110037  MOVB R0, @#177566   Send the character from R0 to the screen
-001126   177566
-001130   000207  RTS R7              Return from the subroutine
 ...      ...
 
 Number input subroutine (Address 1200)
 
 Address  Data    Mnemonic         Description
 001200   005001  CLR R1           Clear the number accumulator
-001202   004737  JSR R7, @#1100   Read one character (goes into R0)
-001204   001100
-001206   120027  CMPB R0, #60     Compare with the character '0'
+001202   004737  JSR R7, @#1500   Read one character (goes into R0)
+001204   001500
+001206   120027  CMPB R0, #60     Compare with character '0'
 001210   000060
-001212   002415  BLT 1246         If code < '0' (this is a sign / input), end of parsing
-001214   120027  CMPB R0, #71     Compare with the character '9'
+001212   002415  BLT 1246         If code < '0' (operator / input), end parsing
+001214   120027  CMPB R0, #71     Compare with character '9'
 001216   000071
-001220   003012  BGT 1246         If code > '9', end of parsing
-001222   010102  MOV R1, R2       Multiply the current number by 10... (copying)
+001220   003012  BGT 1246         If code > '9', end parsing
+001222   010102  MOV R1, R2       Multiply current number by 10... (copy)
 001224   006301  ASL R1           Multiply by 2
 001226   006301  ASL R1           Multiply by 4
 001230   060201  ADD R2, R1       + original = Multiply by 5
 001232   006301  ASL R1           Multiply by 10
-001234   010002  MOV R0, R2       Take the entered ASCII character
-001236   042702  BIC #177760, R2  Cut off everything except the digit (ASCII '3' -> int 3)
+001234   010002  MOV R0, R2       Get the entered ASCII character
+001236   042702  BIC #177760, R2  Mask everything except digit (ASCII '3' -> int 3)
 001240   177760
-001242   060201  ADD R2, R1       Add the digit to the number
-001244   000756  BR 1202          Return to reading the next character
-001246   000207  RTS R7           Return from the subroutine
+001242   060201  ADD R2, R1       Add digit to number
+001244   000756  BR 1202          Return to reading next character
+001246   000207  RTS R7           Return from subroutine
 ...      ...
 
 Number output subroutine (Address 1300)
 
-Address  Data    Mnemonic        Description
-001300   005701  TST R1          Check the number for negativity
-001302   002005  BGE 1316        If >= 0, skip the minus output
+Address  Data    Mnemonic       Description
+001300   005701  TST R1          Check number for negativity
+001302   002005  BGE 1316        If >= 0, skip minus output
 001304   012700  MOV #55, R0     Character '-' in R0
 001306   000055
-001310   004737  JSR R7, @#1114  Print '-'
-001312   001114
-001314   005401  NEG R1          Make the number positive
-001316   010102  MOV R1, R2      Move the number to R2 for processing
-001320   012703  MOV #1500, R3   Initialize the divisor array pointer
-001322   001500
-001324   005004  CLR R4          R4 = 0 (flag that digits have not yet been printed)
-001326   012305  MOV (R3)+, R5   Take the divisor (10000, 1000...) into R5
-001330   005705  TST R5          End of the divisor array?
-001332   001423  BEQ 1402        If yes, finish the output
-001334   005000  CLR R0          Clear the counter (future place digit)
-001336   160502  SUB R5, R2      Subtract the divisor from the remainder of the number
-001340   002402  BLT 1346        If the result is negative, stop subtraction
-001342   005200  INC R0          Increment the digit
+001310   004737  JSR R7, @#1514  Print '-'
+001312   001514
+001314   005401  NEG R1          Make number positive
+001316   010102  MOV R1, R2      Move number to R2 for processing
+001320   012703  MOV #1600, R3   Initialize divisor array pointer
+001322   001600
+001324   005004  CLR R4          R4 = 0 (flag that digits not yet printed)
+001326   012305  MOV (R3)+, R5   Load divisor (10000, 1000...) into R5
+001330   005705  TST R5          End of divisor array?
+001332   001423  BEQ 1402        If yes, finish output
+001334   005000  CLR R0          Clear counter (future place digit)
+001336   160502  SUB R5, R2      Subtract divisor from remainder
+001340   002402  BLT 1346        If result is negative, stop subtraction
+001342   005200  INC R0          Increment digit
 001344   000774  BR 1336         Repeat subtraction
-001346   060502  ADD R5, R2      Return the over-subtracted remainder
+001346   060502  ADD R5, R2      Return over-subtracted remainder
 001350   005700  TST R0          Resulting digit = 0?
 001352   001005  BNE 1366        If not zero, go to print
-001354   005704  TST R4          Have the previous digits been printed?
-001356   001003  BNE 1366        If yes, print the intermediate zero
-001360   020527  CMP R5, #1      Is this the units digit (the last one)?
+001354   005704  TST R4          Have previous digits been printed?
+001356   001003  BNE 1366        If yes, print intermediate zero
+001360   020527  CMP R5, #1      Is this the units digit (last one)?
 001362   000001
-001364   001005  BNE 1400        If no, skip the insignificant zero
-001366   005204  INC R4          Set flag: output has started (R4 > 0)
-001370   062700  ADD #60, R0     Convert the digit to ASCII
+001364   001005  BNE 1400        If no, skip insignificant zero
+001366   005204  INC R4          Set flag: output started (R4 > 0)
+001370   062700  ADD #60, R0     Convert digit to ASCII
 001372   000060
-001374   004737  JSR R7, @#1114  Print the digit
-001376   001114
-001400   000752  BR 1326         Go to the next divisor (decrease in magnitude)
+001374   004737  JSR R7, @#1514  Print digit
+001376   001514
+001400   000752  BR 1326         Go to next divisor
 001402   000207  RTS R7          Return
 ...      ...
 
-Array of divisors (Address 1500)
+Character input/output subroutine (Address 1500)
+
+Address  Data    Mnemonic            Description
+001500   032737  BIT #200, @#177560  Poll keyboard
+001502   000200
+001504   177560
+001506   001774  BEQ 1500            If empty, wait
+001510   113700  MOVB @#177562, R0   Read character into R0
+001512   177562
+001514   032737  BIT #200, @#177564  Poll display (Entry point for output!)
+001516   000200
+001520   177564
+001522   001774  BEQ 1514            If display busy, wait
+001524   110037  MOVB R0, @#177566   Send character from R0 to screen
+001526   177566
+001530   000207  RTS R7              Return from subroutine
+...      ...
+
+Array of divisors (Address 1600)
 
 Address  Data    Mnemonic   Description
-001500   023420             Divisor: 10000
-001502   001750             Divisor: 1000
-001504   000144             Divisor: 100
-001506   000012             Divisor: 10
-001510   000001             Divisor: 1
-001512   000000             (Null terminator)
+001600   023420             Divisor: 10000
+001602   001750             Divisor: 1000
+001604   000144             Divisor: 100
+001606   000012             Divisor: 10
+001610   000001             Divisor: 1
+001612   000000             (Null terminator)
+
+
+6. Program "16-bit Integer Calculator"
+
+Logic: A full-featured four-function calculator consisting of a main control module and a set of auxiliary subroutines. Subroutine 1200 sequentially reads characters from the keyboard and forms a multi-digit number until it encounters a non-numeric character (operator). The main block calls this subroutine twice to obtain the operands and save the operation sign. After receiving the data, the program analyzes the entered sign: standard processor instructions are used for addition and subtraction, while multiplication and division are implemented via software loops (as they are absent in the base PDP-11 architecture). Multiplication is performed by repeatedly adding the first number to itself as many times as specified by the second number. Division is performed via cyclic subtraction of the divisor from the dividend until the remainder is less than the divisor, while the program maintains an iteration counter (the quotient). The resulting binary result is placed in register R1, after which subroutine 1300 is called. It converts the value into decimal ASCII format by successively dividing by powers of ten (subtracting constants 10000, 1000, 100, 10, 1 from the array at address 1600) and prints the final digits to the screen using the system subroutine at 1500.
+
+Main block (control)
+
+Address  Data    Mnemonic        Description
+001000   012706  MOV #1000, R6   Set the bottom of the stack to 1000
+001002   001000                  (address of the bottom of the stack)
+001004   004737  JSR R7, @#1200  Input 1st number (number -> R1, sign -> R0)
+001006   001200                  (address of the number input subroutine)
+001010   010103  MOV R1, R3      Save the 1st number in R3
+001012   010004  MOV R0, R4      Save the entered operation sign in R4
+001014   004737  JSR R7, @#1200  Input 2nd number (result in R1)
+001016   001200
+001020   120427  CMPB R4, #53    Check if the sign was '+'
+001022   000053                  (code of character '+')
+001024   001412  BEQ 1052        If '+', go to addition
+001026   120427  CMPB R4, #55    Check if the sign was '-'
+001030   000055                  (code of character '-')
+001032   001411  BEQ 1056        If '-', go to subtraction
+001034   120427  CMPB R4, #52    Check if the sign was '*'
+001036   000052                  (code of character '*')
+001040   001410  BEQ 1062        If '*', go to multiplication
+001042   120427  CMPB R4, #57    Check if the sign was '/'
+001044   000057                  (code of character '/')
+001046   001415  BEQ 1102        If '/', go to division
+001050   000425  BR 1124         Unknown sign — skip operation
+001052   060103  ADD R1, R3      Addition: R3 = R3 + R1
+001054   000423  BR 1124         Go to output
+001056   160103  SUB R1, R3      Subtraction: R3 = R3 - R1
+001060   000421  BR 1124         Go to output
+001062   005002  CLR R2          R2 = 0 (result accumulator)
+001064   005701  TST R1          Check the multiplier (R1) for 0
+001066   001403  BEQ 1076        If 0, multiplication finished
+001070   060302  ADD R3, R2      Add R3 to accumulator
+001072   005301  DEC R1          Decrement multiplier by 1
+001074   000773  BR 1064         Repeat multiplication loop
+001076   010203  MOV R2, R3      Move result back to R3
+001100   000411  BR 1124         Go to output
+001102   005701  TST R1          Check the divisor (R1) for 0
+001104   001407  BEQ 1124        Division by 0 -> skip
+001106   005002  CLR R2          R2 = 0 (quotient counter)
+001110   020301  CMP R3, R1      Compare remainder and divisor
+001112   002403  BLT 1122        If remainder < divisor, division finished
+001114   160103  SUB R1, R3      Subtract divisor from remainder
+001116   005202  INC R2          Increment quotient by 1
+001120   000773  BR 1110         Repeat subtraction
+001122   010203  MOV R2, R3      Move result (quotient) to R3
+001124   010301  MOV R3, R1      Move result to R1 for output
+001126   004737  JSR R7, @#1300  Call the 16-bit number output subroutine
+001130   001300                  (address of the output subroutine)
+001132   000000  HALT            Stop
+...      ...
+
+Number input subroutine (Address 1200)
+
+Address  Data    Mnemonic         Description
+001200   005001  CLR R1           Clear the number accumulator
+001202   004737  JSR R7, @#1500   Read one character (goes into R0)
+001204   001500
+001206   120027  CMPB R0, #60     Compare with character '0'
+001210   000060
+001212   002415  BLT 1246         If code < '0' (operator / input), end parsing
+001214   120027  CMPB R0, #71     Compare with character '9'
+001216   000071
+001220   003012  BGT 1246         If code > '9', end parsing
+001222   010102  MOV R1, R2       Multiply current number by 10... (copy)
+001224   006301  ASL R1           Multiply by 2
+001226   006301  ASL R1           Multiply by 4
+001230   060201  ADD R2, R1       + original = Multiply by 5
+001232   006301  ASL R1           Multiply by 10
+001234   010002  MOV R0, R2       Get the entered ASCII character
+001236   042702  BIC #177760, R2  Mask everything except digit (ASCII '3' -> int 3)
+001240   177760
+001242   060201  ADD R2, R1       Add digit to number
+001244   000756  BR 1202          Return to reading next character
+001246   000207  RTS R7           Return from subroutine
+...      ...
+
+Number output subroutine (Address 1300)
+
+Address  Data    Mnemonic       Description
+001300   005701  TST R1          Check number for negativity
+001302   002005  BGE 1316        If >= 0, skip minus output
+001304   012700  MOV #55, R0     Character '-' in R0
+001306   000055
+001310   004737  JSR R7, @#1514  Print '-'
+001312   001514
+001314   005401  NEG R1          Make number positive
+001316   010102  MOV R1, R2      Move number to R2 for processing
+001320   012703  MOV #1600, R3   Initialize divisor array pointer
+001322   001600
+001324   005004  CLR R4          R4 = 0 (flag that digits not yet printed)
+001326   012305  MOV (R3)+, R5   Load divisor (10000, 1000...) into R5
+001330   005705  TST R5          End of divisor array?
+001332   001423  BEQ 1402        If yes, finish output
+001334   005000  CLR R0          Clear counter (future place digit)
+001336   160502  SUB R5, R2      Subtract divisor from remainder
+001340   002402  BLT 1346        If result is negative, stop subtraction
+001342   005200  INC R0          Increment digit
+001344   000774  BR 1336         Repeat subtraction
+001346   060502  ADD R5, R2      Return over-subtracted remainder
+001350   005700  TST R0          Resulting digit = 0?
+001352   001005  BNE 1366        If not zero, go to print
+001354   005704  TST R4          Have previous digits been printed?
+001356   001003  BNE 1366        If yes, print intermediate zero
+001360   020527  CMP R5, #1      Is this the units digit (last one)?
+001362   000001
+001364   001005  BNE 1400        If no, skip insignificant zero
+001366   005204  INC R4          Set flag: output started (R4 > 0)
+001370   062700  ADD #60, R0     Convert digit to ASCII
+001372   000060
+001374   004737  JSR R7, @#1514  Print digit
+001376   001514
+001400   000752  BR 1326         Go to next divisor
+001402   000207  RTS R7          Return
+...      ...
+
+Character input/output subroutine (Address 1500)
+
+Address  Data    Mnemonic            Description
+001500   032737  BIT #200, @#177560  Poll keyboard
+001502   000200
+001504   177560
+001506   001774  BEQ 1500            If empty, wait
+001510   113700  MOVB @#177562, R0   Read character into R0
+001512   177562
+001514   032737  BIT #200, @#177564  Poll display (Entry point for output!)
+001516   000200
+001520   177564
+001522   001774  BEQ 1514            If display busy, wait
+001524   110037  MOVB R0, @#177566   Send character from R0 to screen
+001526   177566
+001530   000207  RTS R7              Return from subroutine
+...      ...
+
+Array of divisors (Address 1600)
+
+Address  Data    Mnemonic   Description
+001600   023420             Divisor: 10000
+001602   001750             Divisor: 1000
+001604   000144             Divisor: 100
+001606   000012             Divisor: 10
+001610   000001             Divisor: 1
+001612   000000             (Null terminator)

@@ -41,8 +41,9 @@ The `Programs/` folder contains ready-made programs for testing the emulator (de
 1.  **Hello World** — classic string output to the terminal screen using a loop and checking the device ready flag.
 2.  **Keyboard** — echo input: reading characters from the keyboard and printing them to the screen, exiting by pressing the 'q' key.
 3.  **Print** — text output to the virtual printing device.
-4.  **Single-digit Adder** — a program that accepts an expression like `A+B` from the keyboard, calculates the sum via ASCII codes, and prints the result (e.g., `3+4=7` or `6+5=11`).
-5.  **16-bit Integer Calculator** — a fully-featured calculator with support for addition and subtraction of multi-digit numbers (uses division and ASCII conversion subroutines).
+4.  **Single-digit Adder** — basic arithmetic: accepts an expression like `3+4`, calculates the sum, and prints the result.
+5.  **16-bit Adder and Subtractor** — multi-digit addition and subtraction. Features a binary-to-decimal ASCII conversion algorithm for outputting results to the terminal.
+6.  **16-bit Integer Calculator** — a complete 4-function calculator (+, -, *, /). Implements software-level multiplication and division algorithms that are not part of the standard PDP-11 instruction set.
 
 ---
 
