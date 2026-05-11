@@ -413,3 +413,35 @@ Address  Data    Mnemonic   Description
 001606   000012             Divisor: 10
 001610   000001             Divisor: 1
 001612   000000             (Null terminator)
+
+
+7. Program "Stopwatch"
+
+Logic: The emulator's hardware timer triggers an interrupt every 100ms via vector 100(8). To count 1 full second, the program tracks 10 ticks (12 in octal) in register R1. The main loop uses the WAIT instruction to stop the CPU until the next tick arrives. When the handler at 1100(8) reaches the 10th tick, it increments the second counter in R0 and resets the tick counter.
+
+Interrupt Vector (Address 100)
+
+Address  Data    Mnemonic            Description
+000100   001100                      (Handler address)
+000102   000000                      (New PSW)
+
+Main Program (Address 1000)
+
+Address   Data    Mnemonic       Description
+001000    012706  MOV #1000, R6  Initialize Stack Pointer
+001002    001000                 (stack address)
+001004    012701  MOV #12, R1    Set tick counter (10 decimal = 12 octal)
+001006    000012                 (value 10)
+001010    005000  CLR R0         Clear seconds counter (R0)
+001012    000001  WAIT           Sleep until hardware timer interrupt
+001014    000776  BR 1012        Loop back to sleep after handling tick
+
+Interrupt Handler (Address 1100)
+
+Address   Data    Mnemonic       Description
+001100    005301  DEC R1         Decrease tick counter
+001102    001004  BNE 1112       If not 10th tick, just exit (RTI)
+001104    005200  INC R0         ONE SECOND PASSED! Increment R0
+001106    012701  MOV #12, R1    Reset tick counter to 10
+001110    000012
+001112    000002  RTI            Return to main program (at address 1014)

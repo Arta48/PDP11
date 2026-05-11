@@ -44,6 +44,7 @@ The `Programs/` folder contains ready-made programs for testing the emulator (de
 4.  **Single-digit Adder** — basic arithmetic: accepts an expression like `3+4`, calculates the sum, and prints the result.
 5.  **16-bit Adder and Subtractor** — multi-digit addition and subtraction. Features a binary-to-decimal ASCII conversion algorithm for outputting results to the terminal.
 6.  **16-bit Integer Calculator** — a complete 4-function calculator (+, -, *, /). Implements software-level multiplication and division algorithms that are not part of the standard PDP-11 instruction set.
+7.  **Stopwatch** — demonstrates the `WAIT` instruction and hardware timer. The program counts real-world seconds in register R0 by handling 10 timer interrupts (100ms each) per second, keeping the CPU in a low-power state between ticks.
 
 ---
 
