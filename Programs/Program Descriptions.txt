@@ -201,7 +201,7 @@ Address  Data    Mnemonic         Description
 
 Number output subroutine (Address 1300)
 
-Address  Data    Mnemonic       Description
+Address  Data    Mnemonic        Description
 001300   005701  TST R1          Check number for negativity
 001302   002005  BGE 1316        If >= 0, skip minus output
 001304   012700  MOV #55, R0     Character '-' in R0
@@ -258,13 +258,13 @@ Address  Data    Mnemonic            Description
 
 Array of divisors (Address 1600)
 
-Address  Data    Mnemonic   Description
-001600   023420             Divisor: 10000
-001602   001750             Divisor: 1000
-001604   000144             Divisor: 100
-001606   000012             Divisor: 10
-001610   000001             Divisor: 1
-001612   000000             (Null terminator)
+Address  Data    Mnemonic  Description
+001600   023420            Divisor: 10000
+001602   001750            Divisor: 1000
+001604   000144            Divisor: 100
+001606   000012            Divisor: 10
+001610   000001            Divisor: 1
+001612   000000            (Null terminator)
 
 
 6. Program "16-bit Integer Calculator"
@@ -349,7 +349,7 @@ Address  Data    Mnemonic         Description
 
 Number output subroutine (Address 1300)
 
-Address  Data    Mnemonic       Description
+Address  Data    Mnemonic        Description
 001300   005701  TST R1          Check number for negativity
 001302   002005  BGE 1316        If >= 0, skip minus output
 001304   012700  MOV #55, R0     Character '-' in R0
@@ -406,13 +406,13 @@ Address  Data    Mnemonic            Description
 
 Array of divisors (Address 1600)
 
-Address  Data    Mnemonic   Description
-001600   023420             Divisor: 10000
-001602   001750             Divisor: 1000
-001604   000144             Divisor: 100
-001606   000012             Divisor: 10
-001610   000001             Divisor: 1
-001612   000000             (Null terminator)
+Address  Data    Mnemonic  Description
+001600   023420            Divisor: 10000
+001602   001750            Divisor: 1000
+001604   000144            Divisor: 100
+001606   000012            Divisor: 10
+001610   000001            Divisor: 1
+001612   000000            (Null terminator)
 
 
 7. Program "Stopwatch"
@@ -421,9 +421,9 @@ Logic: The emulator's hardware timer triggers an interrupt every 100ms via vecto
 
 Interrupt Vector (Address 100)
 
-Address  Data    Mnemonic            Description
-000100   001100                      (Handler address)
-000102   000000                      (New PSW)
+Address  Data    Mnemonic  Description
+000100   001100            (handler address)
+000102   000000            (new PSW)
 
 Main Program (Address 1000)
 
@@ -438,10 +438,10 @@ Address   Data    Mnemonic       Description
 
 Interrupt Handler (Address 1100)
 
-Address   Data    Mnemonic       Description
-001100    005301  DEC R1         Decrease tick counter
-001102    001004  BNE 1112       If not 10th tick, just exit (RTI)
-001104    005200  INC R0         ONE SECOND PASSED! Increment R0
-001106    012701  MOV #12, R1    Reset tick counter to 10
+Address   Data    Mnemonic     Description
+001100    005301  DEC R1       Decrease tick counter
+001102    001004  BNE 1112     If not 10th tick, just exit (RTI)
+001104    005200  INC R0       ONE SECOND PASSED! Increment R0
+001106    012701  MOV #12, R1  Reset tick counter to 10
 001110    000012
-001112    000002  RTI            Return to main program (at address 1014)
+001112    000002  RTI          Return to main program (at address 1014)
