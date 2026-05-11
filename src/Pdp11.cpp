@@ -37,7 +37,9 @@ void Pdp11::handleInterrupt(uint16_t vectorAddress) {
     pushToStack(registers[7]); // Сохраняем текущий PC (R7)
 
     registers[7] = readValue(vectorAddress, false); // Загружаем новый PC
-    processorStatusWord = readValue(vectorAddress + 2, false); // Загружаем новый PSW
+
+    // ВАЖНО: Защищаем PSW от загрузки не поддерживаемых битов приоритета и трассировки
+    processorStatusWord = readValue(vectorAddress + 2, false) & 0x000F;
 }
 
 void Pdp11::provideKeyboardInput(uint8_t charCode) {
@@ -57,25 +59,27 @@ uint16_t Pdp11::readValue(uint16_t address, bool isByteOperation) {
 
     // 1. Экран дисплея (Регистр состояния TPS)
     if (targetAddress == 0177564) {
-        return 0200; // Всегда возвращаем бит готовности
+        return isByteOperation ? (0200 & 0xFF) : 0200; // Всегда возвращаем бит готовности
     }
 
     // 2. Устройство печати (Регистр состояния принтера)
     if (targetAddress == 0177514) {
-        return 0200; // Всегда готов печатать
+        return isByteOperation ? (0200 & 0xFF) : 0200; // Всегда готов печатать
     }
 
     // 3. Клавиатура (Регистр состояния TKS)
     if (targetAddress == 0177560) {
-        return keyboardStatusRegister;
+        return isByteOperation ? (keyboardStatusRegister & 0xFF) : keyboardStatusRegister;
     }
 
     // 4. Клавиатура (Регистр данных TKB)
     if (targetAddress == 0177562) {
+        // ВАЖНО: Читаем именно РЕГИСТР ДАННЫХ (keyboardDataRegister), а не статус!
         uint16_t data = keyboardDataRegister;
         keyboardStatusRegister &= ~0200; // Сбрасываем флаг готовности после успешного чтения
-        return data;
+        return isByteOperation ? (data & 0xFF) : data;
     }
+
 
     // --- Оперативная память ---
     uint16_t word = memory[targetAddress / 2];
@@ -145,7 +149,6 @@ uint16_t Pdp11::getEffectiveAddress(uint8_t mode, uint8_t registerIndex, bool is
     // R6(SP) и R7(PC) всегда изменяются на 2 байта даже при байтовых операциях
     uint16_t step = (isByteOperation && registerIndex < 6) ? 1 : 2;
 
-    // Маска (registers[registerIndex] & 0177777) гарантирует, что мы не выйдем за пределы 64КБ
     switch (mode) {
         case 0: // Регистровый (Register)
             return 0;
@@ -165,14 +168,19 @@ uint16_t Pdp11::getEffectiveAddress(uint8_t mode, uint8_t registerIndex, bool is
         case 5: // Косвенно-автодекрементный (Autodecrement Deferred)
             registers[registerIndex] -= 2;
             return memory[(registers[registerIndex] & 0177777) / 2];
-        case 6: // Индексный (Index)
-            address = registers[registerIndex] + memory[(registers[7] & 0177777) / 2];
-            registers[7] += 2; // Перешагиваем через индексное слово
-            return address;
-        case 7: // Косвенно-индексный (Index Deferred)
-            uint16_t indexAddress = registers[registerIndex] + memory[(registers[7] & 0177777) / 2];
+        case 6: { // Индексный (Index) / Относительный
+            // ВАЖНО: PC должен быть увеличен ДО сложения с базовым регистром,
+            // чтобы X(PC) вычислял смещение от уже обновленного счетчика команд!
+            uint16_t indexWord = memory[(registers[7] & 0177777) / 2];
             registers[7] += 2;
+            return registers[registerIndex] + indexWord;
+        }
+        case 7: { // Косвенно-индексный (Index Deferred)
+            uint16_t indexWord = memory[(registers[7] & 0177777) / 2];
+            registers[7] += 2;
+            uint16_t indexAddress = registers[registerIndex] + indexWord;
             return memory[(indexAddress & 0177777) / 2];
+        }
     }
     return 0;
 }
@@ -239,18 +247,18 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         if (branchOpcode == 000400) takeBranch = true; // BR
         else if (branchOpcode == 001000) takeBranch = !isZero; // BNE
         else if (branchOpcode == 001400) takeBranch = isZero; // BEQ
-        else if (branchOpcode == 100000) takeBranch = !isNegative; // BPL
-        else if (branchOpcode == 100400) takeBranch = isNegative; // BMI
-        else if (branchOpcode == 102000) takeBranch = !isOverflow; // BVC
-        else if (branchOpcode == 102400) takeBranch = isOverflow; // BVS
-        else if (branchOpcode == 103000) takeBranch = !isCarry; // BCC / BHIS
-        else if (branchOpcode == 103400) takeBranch = isCarry; // BCS / BLO
+        else if (branchOpcode == 0100000) takeBranch = !isNegative; // BPL
+        else if (branchOpcode == 0100400) takeBranch = isNegative; // BMI
+        else if (branchOpcode == 0102000) takeBranch = !isOverflow; // BVC
+        else if (branchOpcode == 0102400) takeBranch = isOverflow; // BVS
+        else if (branchOpcode == 0103000) takeBranch = !isCarry; // BCC / BHIS
+        else if (branchOpcode == 0103400) takeBranch = isCarry; // BCS / BLO
         else if (branchOpcode == 002000) takeBranch = (isNegative == isOverflow); // BGE
         else if (branchOpcode == 002400) takeBranch = (isNegative != isOverflow); // BLT
         else if (branchOpcode == 003000) takeBranch = (!isZero && (isNegative == isOverflow)); // BGT
         else if (branchOpcode == 003400) takeBranch = (isZero || (isNegative != isOverflow)); // BLE
-        else if (branchOpcode == 101000) takeBranch = (!isCarry && !isZero); // BHI
-        else if (branchOpcode == 101400) takeBranch = (isCarry || isZero); // BLOS
+        else if (branchOpcode == 0101000) takeBranch = (!isCarry && !isZero); // BHI
+        else if (branchOpcode == 0101400) takeBranch = (isCarry || isZero); // BLOS
 
         if (takeBranch) {
             registers[7] += (offset * 2);
@@ -260,13 +268,23 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
 
     // 4. Переходы и подпрограммы (JMP, JSR, RTS)
     if ((instruction & 0177700) == 000100) { // JMP
-        uint16_t destinationAddress = getEffectiveAddress((instruction >> 3) & 07, instruction & 07, false);
+        uint8_t destinationMode = (instruction >> 3) & 07;
+        if (destinationMode == 0) {
+            handleInterrupt(000010); // JMP с регистровой адресацией — запрещенная команда
+            return;
+        }
+        uint16_t destinationAddress = getEffectiveAddress(destinationMode, instruction & 07, false);
         registers[7] = destinationAddress;
         return;
     }
     if ((instruction & 0177000) == 0004000) { // JSR
+        uint8_t destinationMode = (instruction >> 3) & 07;
+        if (destinationMode == 0) {
+            handleInterrupt(000010); // JSR с регистровой адресацией — запрещенная команда
+            return;
+        }
         uint8_t registerIndex = (instruction >> 6) & 07;
-        uint16_t destinationAddress = getEffectiveAddress((instruction >> 3) & 07, instruction & 07, false);
+        uint16_t destinationAddress = getEffectiveAddress(destinationMode, instruction & 07, false);
         pushToStack(registers[registerIndex]);
         registers[registerIndex] = registers[7];
         registers[7] = destinationAddress;
@@ -285,20 +303,27 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         uint16_t oldValue = registers[registerIndex];
         registers[registerIndex]--;
 
-        updateConditionCodes(registers[registerIndex], false, OP_OTHER, 1, oldValue);
-
         if (registers[registerIndex] != 0) {
             registers[7] -= (instruction & 077) * 2;
         }
         return;
     }
 
-    // 6. Прерывания (RTI, EMT, TRAP и т.д.)
-    if (instruction == 000002 || instruction == 000006) {
-        registers[7] = popFromStack();
-        processorStatusWord = popFromStack();
+    // 6. Прерывания (RTI, EMT, TRAP и системные команды)
+    if (instruction == 000001) return; // WAIT: В базовом эмуляторе работает как NOP
+
+    if (instruction == 000005) {       // RESET: Сброс флагов готовности внешних устройств
+        keyboardStatusRegister &= ~0200;
         return;
     }
+
+    if (instruction == 000002 || instruction == 000006) { // RTI / RTT
+        registers[7] = popFromStack();
+        // ВАЖНО: Аппаратно отсекаем мусор, оставляем только флаги NZVC (биты 0-3)
+        processorStatusWord = popFromStack() & 0x000F;
+        return;
+    }
+
     if (instruction == 000003) { handleInterrupt(014); return; } // BPT
     if (instruction == 000004) { handleInterrupt(020); return; } // IOT
     if ((instruction & 0177400) == 0104000) { handleInterrupt(030); return; } // EMT
@@ -315,8 +340,24 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         uint8_t destinationRegisterIndex = instruction & 07;
 
         uint16_t sourceValue = (sourceMode == 0) ? registers[sourceRegisterIndex] : readValue(getEffectiveAddress(sourceMode, sourceRegisterIndex, isByteOperation), isByteOperation);
+
+        // ВАЖНО: Если источник — регистр и операция байтовая, берем только младший байт (отсекаем мусор)
+        if (isByteOperation && sourceMode == 0) {
+            sourceValue &= 0xFF;
+        }
+
         uint16_t destinationAddress = (destinationMode == 0) ? 0 : getEffectiveAddress(destinationMode, destinationRegisterIndex, isByteOperation);
-        uint16_t destinationValue = (destinationMode == 0) ? registers[destinationRegisterIndex] : readValue(destinationAddress, isByteOperation);
+
+        uint16_t destinationValue = 0;
+        // ВАЖНО: Команды MOV и MOVB не должны читать значение приемника (чтобы избежать побочных эффектов I/O)
+        if (doubleOperandOpcode != 01) {
+            destinationValue = (destinationMode == 0) ? registers[destinationRegisterIndex] : readValue(destinationAddress, isByteOperation);
+
+            // Если приемник — регистр и операция байтовая, отсекаем мусор старшего байта
+            if (isByteOperation && destinationMode == 0) {
+                destinationValue &= 0xFF;
+            }
+        }
 
         uint32_t result = 0;
         bool writeBack = true;
@@ -394,11 +435,11 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         return;
     }
 
-    // 9. Одноадресные команды (CLR, COM, INC, DEC, NEG, TST, сдвиги)
-    uint16_t singleOpcode = (instruction >> 6) & 0777;
-    uint16_t baseOpcode = singleOpcode & 0077;
+    // 9. Одноадресные команды (CLR, COM, INC, DEC, NEG, ADC, SBC, TST, сдвиги)
+    uint16_t singleOpcodeMask = instruction & 0077700;
+    uint16_t baseOpcode = (instruction >> 6) & 0077;
 
-    if (baseOpcode >= 0050 && baseOpcode <= 0063) {
+    if (singleOpcodeMask == (baseOpcode << 6) && baseOpcode >= 0050 && baseOpcode <= 0063) {
         uint8_t destinationMode = (instruction >> 3) & 07;
         uint8_t destinationRegisterIndex = instruction & 07;
 
@@ -410,50 +451,37 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         bool writeBack = true;
         OpType operationType = OP_OTHER;
 
-        uint16_t oldCarry = (processorStatusWord & 1); // Сохраняем Carry флаг
+        uint16_t oldCarry = (processorStatusWord & 1); // Сохраняем текущий флаг C
+        uint16_t newCarryForShift = oldCarry;          // Временный C для сдвигов
 
         switch (baseOpcode) {
-            case 0050: result = 0; operationType = OP_LOGIC; break; // CLR
-            case 0051: result = ~currentValue; operationType = OP_LOGIC; break; // COM
-            case 0052: result = (uint32_t) currentValue + 1; operationType = OP_OTHER; break; // INC
-            case 0053: result = (uint32_t) currentValue - 1; operationType = OP_OTHER; break; // DEC
-            case 0054: result = (uint32_t) 0 - currentValue; operationType = OP_SUB; break; // NEG
-            case 0057: result = currentValue; operationType = OP_LOGIC; writeBack = false; break; // TST
+            case 0050: result = 0; operationType = OP_CLR; break; // CLR
+            case 0051: result = ~currentValue; operationType = OP_COM; break; // COM
+            case 0052: result = (uint32_t) currentValue + 1; operationType = OP_INC; break; // INC
+            case 0053: result = (uint32_t) currentValue - 1; operationType = OP_DEC; break; // DEC
+            case 0054: result = (uint32_t) 0 - currentValue; operationType = OP_NEG; break; // NEG
+            case 0055: result = (uint32_t) currentValue + oldCarry; operationType = OP_ADC; break; // ADC
+            case 0056: result = (uint32_t) currentValue - oldCarry; operationType = OP_SBC; break; // SBC
+            case 0057: result = currentValue; operationType = OP_CLR; writeBack = false; break; // TST
             case 0060: // ROR (Rotate Right)
                 result = (currentValue >> 1) | (oldCarry ? (isByteOperation ? 0x80 : 0x8000) : 0);
-                if (currentValue & 1) {
-                    processorStatusWord |= 1;
-                } else {
-                    processorStatusWord &= ~1;
-                }
-                operationType = OP_LOGIC;
+                newCarryForShift = (currentValue & 1) ? 1 : 0;
+                operationType = OP_SHIFT;
                 break;
             case 0061: // ROL (Rotate Left)
                 result = (currentValue << 1) | (oldCarry ? 1 : 0);
-                if (currentValue & (isByteOperation ? 0x80 : 0x8000)) {
-                    processorStatusWord |= 1;
-                } else {
-                    processorStatusWord &= ~1;
-                }
-                operationType = OP_LOGIC;
+                newCarryForShift = (currentValue & (isByteOperation ? 0x80 : 0x8000)) ? 1 : 0;
+                operationType = OP_SHIFT;
                 break;
             case 0062: // ASR (Arithmetic Shift Right)
                 result = (currentValue >> 1) | (currentValue & (isByteOperation ? 0x80 : 0x8000));
-                if (currentValue & 1) {
-                    processorStatusWord |= 1;
-                } else {
-                    processorStatusWord &= ~1;
-                }
-                operationType = OP_LOGIC;
+                newCarryForShift = (currentValue & 1) ? 1 : 0;
+                operationType = OP_SHIFT;
                 break;
             case 0063: // ASL (Arithmetic Shift Left)
                 result = (currentValue << 1);
-                if (currentValue & (isByteOperation ? 0x80 : 0x8000)) {
-                    processorStatusWord |= 1;
-                } else {
-                    processorStatusWord &= ~1;
-                }
-                operationType = OP_LOGIC;
+                newCarryForShift = (currentValue & (isByteOperation ? 0x80 : 0x8000)) ? 1 : 0;
+                operationType = OP_SHIFT;
                 break;
         }
 
@@ -469,16 +497,16 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
             }
         }
 
-        if (baseOpcode >= 0060) {
-            updateConditionCodes(result, isByteOperation, OP_LOGIC); // Сдвиги
-        } else {
-            updateConditionCodes(result, isByteOperation, operationType, 0, currentValue);
+        // Если это сдвиг, безопасно применяем вычисленный флаг C до вызова функции флагов
+        if (operationType == OP_SHIFT) {
+            processorStatusWord = (processorStatusWord & ~1) | newCarryForShift;
         }
+
+        updateConditionCodes(result, isByteOperation, operationType, currentValue, 0);
         return;
     }
 
-    // Если выполнение дошло до этой строчки, значит команда неизвестна архитектуре PDP-11!
-    // Вызываем прерывание "Резервная команда" по вектору 10 (восьмеричное)
+    // Если код сюда дошел — команда точно неизвестна
     handleInterrupt(000010);
 }
 
@@ -492,25 +520,57 @@ void Pdp11::updateConditionCodes(uint32_t result, bool isByteOperation, OpType t
     uint16_t result16 = (uint16_t) (result & mask);
 
     uint16_t oldCarry = processorStatusWord & 1; // Сохраняем старый Carry
+
+    // ВАЖНО: захватываем текущий Carry, т.к. для команд сдвига он уже был вычислен и установлен
+    uint16_t currentCarry = processorStatusWord & 1;
+
     processorStatusWord &= 0xFFF0; // Очищаем старые N, Z, V, C
 
-    if (result16 == 0) processorStatusWord |= 4; // Установка Z (Zero)
-    if (result16 & signBit) processorStatusWord |= 8; // Установка N (Negative)
+    if (result16 == 0) processorStatusWord |= 4; // Z
+    if (result16 & signBit) processorStatusWord |= 8; // N
 
     if (type == OP_ADD) {
         if (result > mask) processorStatusWord |= 1; // C
         if (!((sourceValue ^ destinationValue) & signBit) && ((sourceValue ^ result16) & signBit)) processorStatusWord |= 2; // V
     } else if (type == OP_CMP) {
-        // CMP вычисляет: SRC - DST. Значит проверяем (SRC < DST)
-        if (sourceValue < destinationValue) processorStatusWord |= 1; // C (Заём)
+        if (sourceValue < destinationValue) processorStatusWord |= 1; // C
         if (((sourceValue ^ destinationValue) & signBit) && ((sourceValue ^ result16) & signBit)) processorStatusWord |= 2; // V
-
     } else if (type == OP_SUB) {
-        // SUB вычисляет: DST - SRC. Значит проверяем (DST < SRC)
-        if (destinationValue < sourceValue) processorStatusWord |= 1; // C (Заём)
-        if (((destinationValue ^ sourceValue) & signBit) && !((destinationValue ^ result16) & signBit)) processorStatusWord |= 2; // V
+        if (destinationValue < sourceValue) processorStatusWord |= 1; // C
+        if (((destinationValue ^ sourceValue) & signBit) && ((destinationValue ^ result16) & signBit)) processorStatusWord |= 2; // V
+    } else if (type == OP_INC) {
+        if ((isByteOperation && sourceValue == 0177) || (!isByteOperation && sourceValue == 077777)) processorStatusWord |= 2; // V
+        processorStatusWord |= oldCarry; // C не меняется
+    } else if (type == OP_DEC) {
+        if ((isByteOperation && sourceValue == 0200) || (!isByteOperation && sourceValue == 0100000)) processorStatusWord |= 2; // V
+        processorStatusWord |= oldCarry; // C не меняется
+    } else if (type == OP_NEG) {
+        if ((isByteOperation && sourceValue == 0200) || (!isByteOperation && sourceValue == 0100000)) processorStatusWord |= 2; // V
+        if (result16 != 0) processorStatusWord |= 1; // C устанавливается для всех чисел кроме нуля
+    } else if (type == OP_ADC) {
+        // ADC: C устанавливается только если (DST) был 177777 и C был 1, иначе сбрасывается
+        if (oldCarry && sourceValue == mask) processorStatusWord |= 1; // C
+        // V устанавливается, если (DST) был 077777 и C был 1
+        if (oldCarry && sourceValue == (isByteOperation ? 0177 : 077777)) processorStatusWord |= 2; // V
+    } else if (type == OP_SBC) {
+        // SBC: C СБРАСЫВАЕТСЯ, только если (DST) был 0 и C был 1, иначе УСТАНАВЛИВАЕТСЯ
+        if (!(oldCarry && sourceValue == 0)) processorStatusWord |= 1; // C
+        // V устанавливается, если (DST) был 100000 и C был 1
+        if (oldCarry && sourceValue == signBit) processorStatusWord |= 2; // V
+    } else if (type == OP_COM) {
+        processorStatusWord |= 1; // COM всегда устанавливает C = 1, V = 0
+    } else if (type == OP_CLR) {
+        // OP_CLR (используется для CLR и TST)
+        // Для CLR: N = 0, Z = 1 (т.к. result = 0), C = 0, V = 0.
+        // Для TST: N и Z зависят от результата, C = 0, V = 0.
+        // Маска 0xFFF0 в начале функции уже успешно сбросила C и V в 0.
+    } else if (type == OP_SHIFT) {
+        processorStatusWord |= oldCarry; // Восстанавливаем C, вычисленный самой командой сдвига
+        bool n = (processorStatusWord & 8) != 0;
+        bool c = (processorStatusWord & 1) != 0;
+        if (n ^ c) processorStatusWord |= 2; // Для сдвигов V = N ^ C
     } else if (type == OP_LOGIC || type == OP_OTHER) {
-        processorStatusWord |= oldCarry; // Логические операции не меняют C
+        processorStatusWord |= oldCarry; // Логические операции C не меняют, V = 0
     }
 }
 
@@ -597,7 +657,11 @@ QString Pdp11::disassemble(uint16_t instruction, uint16_t address) {
             case 0103400: instructionName = "BCS"; break;
         }
         int8_t offset = static_cast<int8_t>(instruction & 0377);
-        uint16_t targetAddress = address + 2 + (offset * 2);
+
+        // Оставляем только отсечение до 16 бит для корректной работы отрицательных смещений
+        uint16_t targetAddress = (address + 2 + (offset * 2)) & 0177777;
+
+        // Возвращаем оригинальное форматирование без ведущих нулей
         return QString("%1 %2").arg(instructionName).arg(QString::number(targetAddress, 8));
     }
 
@@ -617,7 +681,11 @@ QString Pdp11::disassemble(uint16_t instruction, uint16_t address) {
     if ((instruction & 0177000) == 077000) {
         uint8_t registerIndex = (instruction >> 6) & 07;
         uint16_t offset = (instruction & 077) * 2;
-        return QString("SOB R%1, %2").arg(registerIndex).arg(QString::number(address + 2 - offset, 8));
+
+        uint16_t targetAddress = (address + 2 - offset) & 0177777;
+
+        // Возвращаем оригинальное форматирование без ведущих нулей
+        return QString("SOB R%1, %2").arg(registerIndex).arg(QString::number(targetAddress, 8));
     }
     if ((instruction & 0177000) == 074000) {
         QString registerName = QString("R%1").arg((instruction >> 6) & 07);

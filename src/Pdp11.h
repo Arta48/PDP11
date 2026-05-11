@@ -9,7 +9,7 @@
 /**
  * @brief Типы математических операций для корректного обновления флагов (NZVC).
  */
-enum OpType { OP_LOGIC, OP_ADD, OP_SUB, OP_CMP, OP_OTHER };
+enum OpType { OP_LOGIC, OP_ADD, OP_SUB, OP_CMP, OP_INC, OP_DEC, OP_COM, OP_CLR, OP_NEG, OP_ADC, OP_SBC, OP_SHIFT, OP_OTHER };
 
 /**
  * @brief Класс, эмулирующий работу центрального процессора и шины PDP-11.
