@@ -2,7 +2,7 @@
 
 # 🖥️ Command System Emulator PDP-11
 
-![Linux Dark Mode](assets/pictures/linux_dark.png)
+![Linux Dark Mode](assets/Pictures/linux_dark.png)
 
 ![C++17](https://img.shields.io/badge/C++-17-blue.svg)
 ![Qt6](https://img.shields.io/badge/Qt-6.0+-green.svg)
@@ -27,16 +27,16 @@ The emulator is written in **C++17** using the **Qt6** framework. It supports on
     *   Printer (`177514`, `177516`)
     *   Hardware timer with interrupt generation via vector `100(8)`.
 *   **Dynamic UI theme:** Automatic support for light and dark themes depending on your operating system settings (Windows / Linux).
-*   **Help system:** Built-in context help for commands and an included detailed reference guide in PDF format.
+*   **Help system:** Built-in context help for commands and an included detailed reference guide in [**PDF**](Docs/PDP11.pdf) and [**Markdown**](Docs/PDP11.md) formats.
 *   **Save and load:** Support for importing and exporting programs in the `.pdp` format.
 
-![Windows Light Mode](assets/pictures/windows_light.png)
+![Windows Light Mode](assets/Pictures/windows_light.png)
 
 ---
 
 ## 🚀 Example Programs
 
-The `Programs/` folder contains ready-made programs for testing the emulator (details in the [Program Descriptions.txt](Programs/Program%20Descriptions.txt) file):
+The `Programs/` folder contains ready-made programs for testing the emulator (details in the [**Program Descriptions.txt**](Docs/Program%20Descriptions.txt) file):
 
 1.  **Hello World** — classic string output to the terminal screen using a loop and checking the device ready flag.
 2.  **Keyboard** — echo input: reading characters from the keyboard and printing them to the screen, exiting by pressing the 'q' key.
@@ -118,7 +118,8 @@ The project supports building a static `.exe` file for Windows directly from Lin
 
 *   `src/` — C++ source code (`Pdp11.cpp` - emulator core, `MainWindow.cpp` - graphical interface).
 *   `assets/` — graphical interface resources (icons, fonts for UI).
-*   `Programs/` — a collection of ready-made programs (`.pdp` dumps) and their descriptions.
+*   `Docs/` — documentation: reference manual and detailed code logic descriptions.
+*   `Programs/` — a collection of ready-made programs (`.pdp` dumps).
 *   `CMakeLists.txt` — build system configuration.
 *   `PDP11.pdf` — reference manual on the architecture and command system (copied to the build folder).
 

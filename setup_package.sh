@@ -9,7 +9,7 @@ fi
 
 mkdir pdp11_pkg
 cp build/PDP11 pdp11_pkg
-cp PDP11.pdf pdp11_pkg
+cp Docs/PDP11.pdf pdp11_pkg
 cp assets/icon.png pdp11_pkg/pdp11.png
 cd pdp11_pkg
 
