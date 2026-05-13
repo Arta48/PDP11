@@ -7,6 +7,7 @@
 ![C++17](https://img.shields.io/badge/C++-17-blue.svg)
 ![Qt6](https://img.shields.io/badge/Qt-6.0+-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 **Command System Emulator PDP-11** is a cross-platform emulator of the classic PDP-11 architecture with a graphical user interface. The project was created for educational purposes to study computer architecture, assembly language, and the principles of processor operation.
 
@@ -122,9 +123,3 @@ The project supports building a static `.exe` file for Windows directly from Lin
 *   `Programs/` — a collection of ready-made programs (`.pdp` dumps).
 *   `CMakeLists.txt` — build system configuration.
 *   `PDP11.pdf` — reference manual on the architecture and command system (copied to the build folder).
-
----
-
-## 📜 License
-
-This project was created for educational purposes. The source code is provided "As Is".

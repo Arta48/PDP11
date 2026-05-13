@@ -5,6 +5,7 @@
 ![C++17](https://img.shields.io/badge/C++-17-blue.svg)
 ![Qt6](https://img.shields.io/badge/Qt-6.0+-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 **Command System Emulator PDP-11** — это кроссплатформенный эмулятор классической архитектуры PDP-11 с графическим интерфейсом. Проект создан в образовательных целях для изучения архитектуры ЭВМ, ассемблера и принципов работы процессора.
 
@@ -120,9 +121,3 @@ sh setup_package.sh
 *   `Programs/` — коллекция готовых программ (дампы `.pdp`).
 *   `CMakeLists.txt` — конфигурация сборочной системы.
 *   `PDP11.pdf` — справочное руководство по архитектуре и системе команд (копируется в папку сборки).
-
----
-
-## 📜 Лицензия
-
-Этот проект создан в образовательных целях. Исходный код предоставляется "как есть" (As Is).
