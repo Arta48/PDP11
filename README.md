@@ -122,4 +122,3 @@ The project supports building a static `.exe` file for Windows directly from Lin
 *   `Docs/` — documentation: reference manual and detailed code logic descriptions.
 *   `Programs/` — a collection of ready-made programs (`.pdp` dumps).
 *   `CMakeLists.txt` — build system configuration.
-*   `PDP11.pdf` — reference manual on the architecture and command system (copied to the build folder).
