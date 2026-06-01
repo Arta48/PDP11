@@ -10,6 +10,7 @@ fi
 mkdir pdp11_pkg
 cp build/PDP11 pdp11_pkg
 cp Docs/PDP11.pdf pdp11_pkg
+cp Docs/"PDP11 RU.pdf" pdp11_pkg
 cp assets/icon.png pdp11_pkg/pdp11.png
 cd pdp11_pkg
 
@@ -40,9 +41,11 @@ optdepends=(
 source=(
     "PDP11"
     "PDP11.pdf"
+    "PDP11 RU.pdf"
     "pdp11.png"
 )
 sha256sums=(
+    "SKIP"
     "SKIP"
     "SKIP"
     "SKIP"
@@ -63,6 +66,7 @@ prepare() {
 Type=Application
 Categories=Development;Education;Emulator;
 Name=Command System Emulator PDP-11
+Name[ru]=Эмулятор системы команд PDP-11
 Exec=pdp11
 Icon=pdp11
 Terminal=false
@@ -76,6 +80,7 @@ package() {
     # Installing the binary and resources in /opt
     install -Dm755 PDP11 "${pkgdir}/opt/pdp11/PDP11"
     install -Dm644 PDP11.pdf "${pkgdir}/opt/pdp11/PDP11.pdf"
+    install -Dm644 "PDP11 RU.pdf" "${pkgdir}/opt/pdp11/PDP11 RU.pdf"
 
     # Creating a symbolic link in /usr/bin
     install -d "${pkgdir}/usr/bin"

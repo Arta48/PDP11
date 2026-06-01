@@ -1,6 +1,6 @@
 # 🖥️ Command System Emulator PDP-11
 
-![Linux Dark Mode](assets/Pictures/linux_dark.png)
+![Linux Dark Mode](assets/Pictures/linux_dark_ru.png)
 
 ![C++17](https://img.shields.io/badge/C++-17-blue.svg)
 ![Qt6](https://img.shields.io/badge/Qt-6.0+-green.svg)
@@ -25,11 +25,12 @@
     *   Терминал / Дисплей (TPS `177564`, TPB `177566`)
     *   Принтер (`177514`, `177516`)
     *   Аппаратный таймер с генерацией прерываний по вектору `100(8)`.
-*   **Динамическая тема оформления:** Автоматическая поддержка светлой и темной темы в зависимости от настроек вашей операционной системы (Windows / Linux).
-*   **Справочная система:** Встроенная контекстная справка по командам и прилагаемый подробный справочник в форматах [**PDF**](Docs/PDP11.pdf) и [**Markdown**](Docs/PDP11%20RU.md).
+*   **Динамическая тема оформления:** Автоматическая поддержка светлой и темной темы в зависимости от настроек вашей операционной системы (Linux / Windows).
+*   **Справочная система:** Встроенная контекстная справка по командам и прилагаемый подробный справочник в форматах [**PDF**](Docs/PDP11%20RU.pdf) и [**Markdown**](Docs/PDP11%20RU.md).
+*   **Двуязычная поддержка:** Интерфейс приложения, встроенный дизассемблер, контекстная справка по командам и подробный справочник автоматически адаптируются под язык вашей системы (русский / английский).
 *   **Сохранение и загрузка:** Поддержка импорта и экспорта программ в формате `.pdp`.
 
-![Windows Light Mode](assets/Pictures/windows_light.png)
+![Windows Light Mode](assets/Pictures/windows_light_ru.png)
 
 ---
 
@@ -96,7 +97,13 @@ sh setup_package.sh
    ```bash
    sudo pacman -S mingw-w64-gcc
    
-   echo -e "\n[ownstuff]\nSigLevel = Optional TrustAll\nServer = https://ftp.f3l.de/~martchus/\$repo/os/\$arch\nServer = https://martchus.dyn.f3l.de/repo/arch/\$repo/os/\$arch" | sudo tee -a /etc/pacman.conf
+   if ! grep -q "ownstuff" /etc/pacman.conf; then
+       echo -e "
+   [ownstuff]
+   SigLevel = Optional TrustAll
+   Server = https://ftp.f3l.de/~martchus/\$repo/os/\$arch
+   Server = https://martchus.dyn.f3l.de/repo/arch/\$repo/os/\$arch" | sudo tee -a /etc/pacman.conf > /dev/null
+   fi
    
    sudo pacman-key --keyserver keyserver.ubuntu.com --recv-keys B9E36A7275FC61B464B67907E06FE8F53CDC6A4C
    sudo pacman-key --finger B9E36A7275FC61B464B67907E06FE8F53CDC6A4C

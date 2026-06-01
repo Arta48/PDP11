@@ -754,41 +754,41 @@ void Pdp11::getInstructionDetails(uint16_t instruction, uint16_t address, QStrin
     uint16_t interruptMask = instruction & 0177400;
     if ((interruptMask == 0104000) || (interruptMask == 0104400)) {
         format = QString::number(interruptMask, 8);
-        type = "No-address command";
+        type = getLocalizedText("Безадресная команда", "No-address command");
         switch (interruptMask) {
-            case 0104000: name = "Command interrupt for system programs"; break;
-            case 0104400: name = "Command interrupt"; break;
+            case 0104000: name = getLocalizedText("Командное прерывание для системных программ", "Command interrupt for system programs"); break;
+            case 0104400: name = getLocalizedText("Командное прерывание", "Command interrupt"); break;
         }
         return;
     } else if (instruction >= 0 && instruction <= 000006) {
-        type = "No-address command";
+        type = getLocalizedText("Безадресная команда", "No-address command");
         switch (instruction) {
-            case 000000: name = "Halt"; break;
-            case 000001: name = "Wait"; break;
-            case 000002: name = "Return from interrupt"; break;
-            case 000003: name = "Command interrupt for debugging"; break;
-            case 000004: name = "Command interrupt for I/O"; break;
-            case 000005: name = "Reset external devices"; break;
-            case 000006: name = "Return from interrupt"; break;
+            case 000000: name = getLocalizedText("Останов", "Halt"); break;
+            case 000001: name = getLocalizedText("Ожидание", "Wait"); break;
+            case 000002: name = getLocalizedText("Возврат из прерывания", "Return from interrupt"); break;
+            case 000003: name = getLocalizedText("Командное прерывание для отладки", "Command interrupt for debugging"); break;
+            case 000004: name = getLocalizedText("Командное прерывание для ввода-вывода", "Command interrupt for I/O"); break;
+            case 000005: name = getLocalizedText("Сброс внешних устройств", "Reset external devices"); break;
+            case 000006: name = getLocalizedText("Возврат из прерывания", "Return from interrupt"); break;
         }
         return;
     }
 
     uint16_t conditionMask = instruction & 0177740;
     if (conditionMask == 000240) {
-        type = "No-address command";
+        type = getLocalizedText("Безадресная команда", "No-address command");
         switch (instruction) {
-            case 000240: name = "No operation"; break;
-            case 000241: name = "Clear C"; break;
-            case 000242: name = "Clear V"; break;
-            case 000244: name = "Clear Z"; break;
-            case 000250: name = "Clear N"; break;
-            case 000257: name = "Clear all CC"; break;
-            case 000261: name = "Set C"; break;
-            case 000262: name = "Set V"; break;
-            case 000264: name = "Set Z"; break;
-            case 000270: name = "Set N"; break;
-            case 000277: name = "Set all CC"; break;
+            case 000240: name = getLocalizedText("Нет операции", "No operation"); break;
+            case 000241: name = getLocalizedText("Очистка C", "Clear C"); break;
+            case 000242: name = getLocalizedText("Очистка V", "Clear V"); break;
+            case 000244: name = getLocalizedText("Очистка Z", "Clear Z"); break;
+            case 000250: name = getLocalizedText("Очистка N", "Clear N"); break;
+            case 000257: name = getLocalizedText("Очистка всех разрядов", "Clear all CC"); break;
+            case 000261: name = getLocalizedText("Установка C", "Set C"); break;
+            case 000262: name = getLocalizedText("Установка V", "Set V"); break;
+            case 000264: name = getLocalizedText("Установка Z", "Set Z"); break;
+            case 000270: name = getLocalizedText("Установка N", "Set N"); break;
+            case 000277: name = getLocalizedText("Установка всех разрядов", "Set all CC"); break;
         }
         return;
     }
@@ -800,23 +800,23 @@ void Pdp11::getInstructionDetails(uint16_t instruction, uint16_t address, QStrin
         branchMask == 0101000 || branchMask == 0101400 || branchMask == 0102000 ||
         branchMask == 0102400 || branchMask == 0103000 || branchMask == 0103400) {
 
-        type = "Branch command";
+        type = getLocalizedText("Команда ветвления", "Branch command");
         switch (branchMask) {
-            case 000400: name = "Unconditional branch"; break;
-            case 001000: name = "Branch if not equal"; break;
-            case 001400: name = "Branch if equal"; break;
-            case 002000: name = "Branch if greater or equal"; break;
-            case 002400: name = "Branch if less"; break;
-            case 003000: name = "Branch if greater"; break;
-            case 003400: name = "Branch if less or equal"; break;
-            case 0100000: name = "Branch if plus"; break;
-            case 0100400: name = "Branch if minus"; break;
-            case 0101000: name = "Branch if higher"; break;
-            case 0101400: name = "Branch if lower or same"; break;
-            case 0102000: name = "Branch if overflow clear"; break;
-            case 0102400: name = "Branch if overflow set"; break;
-            case 0103000: name = "Branch if carry clear"; break;
-            case 0103400: name = "Branch if carry set"; break;
+            case 000400: name = getLocalizedText("Ветвление безусловное", "Unconditional branch"); break;
+            case 001000: name = getLocalizedText("Ветвление, если не равно", "Branch if not equal"); break;
+            case 001400: name = getLocalizedText("Ветвление, если равно", "Branch if equal"); break;
+            case 002000: name = getLocalizedText("Ветвление, если больше или равно", "Branch if greater or equal"); break;
+            case 002400: name = getLocalizedText("Ветвление, если меньше", "Branch if less"); break;
+            case 003000: name = getLocalizedText("Ветвление, если больше", "Branch if greater"); break;
+            case 003400: name = getLocalizedText("Ветвление, если меньше или равно", "Branch if less or equal"); break;
+            case 0100000: name = getLocalizedText("Ветвление, если плюс", "Branch if plus"); break;
+            case 0100400: name = getLocalizedText("Ветвление, если минус", "Branch if minus"); break;
+            case 0101000: name = getLocalizedText("Ветвление, если больше", "Branch if higher"); break;
+            case 0101400: name = getLocalizedText("Ветвление, если меньше или равно", "Branch if lower or same"); break;
+            case 0102000: name = getLocalizedText("Ветвление, если нет арифметического переполнения", "Branch if overflow clear"); break;
+            case 0102400: name = getLocalizedText("Ветвление, если есть арифметическое переполнение", "Branch if overflow set"); break;
+            case 0103000: name = getLocalizedText("Ветвление, если нет переноса", "Branch if carry clear"); break;
+            case 0103400: name = getLocalizedText("Ветвление, если перенос", "Branch if carry set"); break;
         }
         format = QString::number(branchMask, 8).rightJustified(6, '0') + "+XXX";
         return;
@@ -829,20 +829,20 @@ void Pdp11::getInstructionDetails(uint16_t instruction, uint16_t address, QStrin
 
     if (jmpMask == 000100 || jsrMask == 004000 || rtsMask == 000200 || sobMask == 077000) {
         if (jmpMask == 000100) {
-            type = "One-address command";
-            name = "Unconditional jump";
+            type = getLocalizedText("Одноадресная команда", "One-address command");
+            name = getLocalizedText("Безусловный переход", "Unconditional jump");
             format = "0001DD";
         } else if (jsrMask == 004000) {
-            type = "One-address command with extra register";
-            name = "Call subroutine";
+            type = getLocalizedText("Одноадресная команда с дополнительным регистром", "One-address command with extra register");
+            name = getLocalizedText("Обращение к подпрограмме", "Call subroutine");
             format = "004RDD";
         } else if (rtsMask == 000200) {
-            type = "Return from subroutine";
-            name = "Return from subroutine";
+            type = getLocalizedText("Возврат из подпрограммы", "Return from subroutine");
+            name = getLocalizedText("Возврат из подпрограммы", "Return from subroutine");
             format = "00020R";
         } else if (sobMask == 077000) {
-            type = "Decrement and branch";
-            name = "Decrement and branch";
+            type = getLocalizedText("Вычитание единицы и ветвление", "Decrement and branch");
+            name = getLocalizedText("Вычитание единицы и ветвление", "Decrement and branch");
             format = "077RNN";
         }
         return;
@@ -854,25 +854,25 @@ void Pdp11::getInstructionDetails(uint16_t instruction, uint16_t address, QStrin
 
     if ((doubleMask >= 1 && doubleMask <= 6) || fullDoubleMask == 016 || xorMask == 0074000) {
         if (xorMask == 0074000) {
-            type = "One-address command with extra register";
-            name = "Exclusive OR";
+            type = getLocalizedText("Одноадресная команда с дополнительным регистром", "One-address command with extra register");
+            name = getLocalizedText("Исключающее ИЛИ", "Exclusive OR");
             format = "074RDD";
         } else if (fullDoubleMask == 016) {
-            type = "Two-address command";
-            name = "Subtraction";
+            type = getLocalizedText("Двухадресная команда", "Two-address command");
+            name = getLocalizedText("Вычитание", "Subtraction");
             format = "16SSDD";
         } else if (doubleMask == 06) {
-            type = "Two-address command";
-            name = "Addition";
+            type = getLocalizedText("Двухадресная команда", "Two-address command");
+            name = getLocalizedText("Сложение", "Addition");
             format = "06SSDD";
         } else {
-            type = "Two-address command";
+            type = getLocalizedText("Двухадресная команда", "Two-address command");
             switch (doubleMask) {
-                case 1: name = "Move"; break;
-                case 2: name = "Compare"; break;
-                case 3: name = "Bit test"; break;
-                case 4: name = "Bit clear"; break;
-                case 5: name = "Bit set"; break;
+                case 1: name = getLocalizedText("Пересылка", "Move"); break;
+                case 2: name = getLocalizedText("Сравнение", "Compare"); break;
+                case 3: name = getLocalizedText("Проверка разрядов", "Bit test"); break;
+                case 4: name = getLocalizedText("Очистка разрядов", "Bit clear"); break;
+                case 5: name = getLocalizedText("Логическое сложение", "Bit set"); break;
             }
             QString prefix = isByteOperation ? "1" : "0";
             format = prefix + QString::number(doubleMask, 8) + "SSDD";
@@ -883,28 +883,28 @@ void Pdp11::getInstructionDetails(uint16_t instruction, uint16_t address, QStrin
     uint16_t singleMask = (instruction >> 6) & 0777;
     uint16_t baseMask = singleMask & 0077;
     if (baseMask >= 0050 && baseMask <= 0063) {
-        type = "One-address command";
+        type = getLocalizedText("Одноадресная команда", "One-address command");
         switch (baseMask) {
-            case 0050: name = "Clear"; break;
-            case 0051: name = "Invert"; break;
-            case 0052: name = "Increment"; break;
-            case 0053: name = "Decrement"; break;
-            case 0054: name = "Negate"; break;
-            case 0055: name = "Add carry"; break;
-            case 0056: name = "Subtract carry"; break;
-            case 0057: name = "Test"; break;
-            case 0060: name = "Rotate right"; break;
-            case 0061: name = "Rotate left"; break;
-            case 0062: name = "Arithmetic shift right"; break;
-            case 0063: name = "Arithmetic shift left"; break;
+            case 0050: name = getLocalizedText("Очистка", "Clear"); break;
+            case 0051: name = getLocalizedText("Инвертирование", "Invert"); break;
+            case 0052: name = getLocalizedText("Прибавление единицы", "Increment"); break;
+            case 0053: name = getLocalizedText("Вычитание единицы", "Decrement"); break;
+            case 0054: name = getLocalizedText("Изменение знака", "Negate"); break;
+            case 0055: name = getLocalizedText("Прибавление переноса", "Add carry"); break;
+            case 0056: name = getLocalizedText("Вычитание переноса", "Subtract carry"); break;
+            case 0057: name = getLocalizedText("Проверка", "Test"); break;
+            case 0060: name = getLocalizedText("Циклический сдвиг вправо", "Rotate right"); break;
+            case 0061: name = getLocalizedText("Циклический сдвиг влево", "Rotate left"); break;
+            case 0062: name = getLocalizedText("Арифметический сдвиг вправо", "Arithmetic shift right"); break;
+            case 0063: name = getLocalizedText("Арифметический сдвиг влево", "Arithmetic shift left"); break;
         }
         QString prefix = isByteOperation ? "1" : "0";
         format = prefix + QString::number(baseMask, 8).rightJustified(3, '0') + "DD";
         return;
     }
 
-    name = "Unknown command";
-    type = "Unknown";
+    name = getLocalizedText("Неизвестная команда", "Unknown command");
+    type = getLocalizedText("Неизвестно", "Unknown");
     format = "XXXXXX";
 }
 

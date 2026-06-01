@@ -229,84 +229,84 @@ void MainWindow::setupUserInterface() {
     // ==========================================
 
     // Меню File
-    actOpen = new QAction(style->standardIcon(QStyle::SP_DialogOpenButton), "&Open File", this);
+    actOpen = new QAction(style->standardIcon(QStyle::SP_DialogOpenButton), getLocalizedText("&Открыть файл", "&Open File"), this);
     actOpen->setShortcut(QKeySequence("Ctrl+O"));
     connect(actOpen, &QAction::triggered, this, &MainWindow::handleOpenFile);
 
-    actSave = new QAction(style->standardIcon(QStyle::SP_DialogSaveButton), "&Save File", this);
+    actSave = new QAction(style->standardIcon(QStyle::SP_DialogSaveButton), getLocalizedText("&Сохранить файл", "&Save File"), this);
     actSave->setShortcut(QKeySequence("Ctrl+S"));
     connect(actSave, &QAction::triggered, this, &MainWindow::handleSaveFile);
 
-    actExit = new QAction(style->standardIcon(QStyle::SP_BrowserStop), "E&xit", this);
+    actExit = new QAction(style->standardIcon(QStyle::SP_BrowserStop), getLocalizedText("Вы&ход", "E&xit"), this);
     connect(actExit, &QAction::triggered, this, &MainWindow::handleExit);
 
     // Меню Run
-    actStep = new QAction(style->standardIcon(QStyle::SP_MediaSkipForward), "&Step Mode", this);
+    actStep = new QAction(style->standardIcon(QStyle::SP_MediaSkipForward), getLocalizedText("&Пошаговый режим", "&Step Mode"), this);
     connect(actStep, &QAction::triggered, this, &MainWindow::handleStepExecution);
 
-    actRun = new QAction(style->standardIcon(QStyle::SP_MediaPlay), "&Program Mode", this);
+    actRun = new QAction(style->standardIcon(QStyle::SP_MediaPlay), getLocalizedText("&Программа", "&Program Mode"), this);
     connect(actRun, &QAction::triggered, this, &MainWindow::handleProgramExecution);
 
     // Меню Devices -> RAM
-    actRamClear = new QAction("Clear", this);
+    actRamClear = new QAction(getLocalizedText("Очистить", "Clear"), this);
     connect(actRamClear, &QAction::triggered, this, &MainWindow::handleRamClear);
 
-    actRamAdd = new QAction("Add", this);
+    actRamAdd = new QAction(getLocalizedText("Добавить", "Add"), this);
     connect(actRamAdd, &QAction::triggered, this, &MainWindow::handleRamAdd);
 
     // Меню Devices -> Display Screen
-    actScreenShow = new QAction("Show", this);
+    actScreenShow = new QAction(getLocalizedText("Показать", "Show"), this);
     connect(actScreenShow, &QAction::triggered, this, &MainWindow::handleScreenShow);
 
-    actScreenClear = new QAction("Clear", this);
+    actScreenClear = new QAction(getLocalizedText("Очистить", "Clear"), this);
     connect(actScreenClear, &QAction::triggered, this, &MainWindow::handleScreenClear);
 
-    actScreenRemove = new QAction("Remove", this);
+    actScreenRemove = new QAction(getLocalizedText("Удалить", "Remove"), this);
     connect(actScreenRemove, &QAction::triggered, this, &MainWindow::handleScreenRemove);
 
     // Управление окнами
-    actWindow = new QAction(style->standardIcon(QStyle::SP_TitleBarNormalButton), "&Window", this);
+    actWindow = new QAction(style->standardIcon(QStyle::SP_TitleBarNormalButton), getLocalizedText("&Окно", "&Window"), this);
     connect(actWindow, &QAction::triggered, this, &MainWindow::handleRamAdd);
 
-    actScreen = new QAction(style->standardIcon(QStyle::SP_DesktopIcon), "&Screen", this);
+    actScreen = new QAction(style->standardIcon(QStyle::SP_DesktopIcon), getLocalizedText("&Экран", "&Screen"), this);
     connect(actScreen, &QAction::triggered, this, &MainWindow::handleScreenShow);
 
     // Устройства -> Таймер
-    actionTimerToggle = new QAction("Timer", this);
+    actionTimerToggle = new QAction(getLocalizedText("Таймер", "Timer"), this);
     actionTimerToggle->setCheckable(true);
     actionTimerToggle->setIcon(style->standardIcon(QStyle::SP_BrowserReload));
-    actionTimerToggle->setToolTip("Timer off");
+    actionTimerToggle->setToolTip(getLocalizedText("Таймер выключен", "Timer off"));
     connect(actionTimerToggle, &QAction::toggled, this, &MainWindow::handleTimerToggle);
 
     // Меню Help
-    actRef = new QAction(style->standardIcon(QStyle::SP_MessageBoxInformation), "&Reference", this);
+    actRef = new QAction(style->standardIcon(QStyle::SP_MessageBoxInformation), getLocalizedText("&Справочник", "&Reference"), this);
     actRef->setShortcut(QKeySequence("Ctrl+H"));
     connect(actRef, &QAction::triggered, this, &MainWindow::handleReference);
 
-    actAbout = new QAction(style->standardIcon(QStyle::SP_MessageBoxQuestion), "&About", this);
+    actAbout = new QAction(style->standardIcon(QStyle::SP_MessageBoxQuestion), getLocalizedText("&О программе", "&About"), this);
     connect(actAbout, &QAction::triggered, this, &MainWindow::handleAbout);
 
 
     // ==========================================
     // 2. ВЕРХНЕЕ МЕНЮ (MenuBar)
     // ==========================================
-    QMenu *fileMenu = menuBar()->addMenu("&File");
+    QMenu *fileMenu = menuBar()->addMenu(getLocalizedText("&Файл", "&File"));
     fileMenu->addAction(actOpen);
     fileMenu->addAction(actSave);
     fileMenu->addSeparator();
     fileMenu->addAction(actExit);
 
-    QMenu *runMenu = menuBar()->addMenu("&Run");
+    QMenu *runMenu = menuBar()->addMenu(getLocalizedText("&Выполнить", "&Run"));
     runMenu->addAction(actStep);
     runMenu->addAction(actRun);
 
-    QMenu *devicesMenu = menuBar()->addMenu("&Devices");
-    ramSubMenu = devicesMenu->addMenu("RAM");
+    QMenu *devicesMenu = menuBar()->addMenu(getLocalizedText("&Устройства", "&Devices"));
+    ramSubMenu = devicesMenu->addMenu(getLocalizedText("ОЗУ", "RAM"));
     ramSubMenu->setIcon(style->standardIcon(QStyle::SP_TitleBarNormalButton));
     ramSubMenu->addAction(actRamClear);
     ramSubMenu->addAction(actRamAdd);
 
-    screenSubMenu = devicesMenu->addMenu("Display Screen");
+    screenSubMenu = devicesMenu->addMenu(getLocalizedText("Экран дисплея", "Display Screen"));
     screenSubMenu->setIcon(style->standardIcon(QStyle::SP_DesktopIcon));
     screenSubMenu->addAction(actScreenShow);
     screenSubMenu->addAction(actScreenClear);
@@ -314,9 +314,9 @@ void MainWindow::setupUserInterface() {
 
     devicesMenu->addAction(actionTimerToggle);
 
-    menuBar()->addMenu("&Modes"); // Пустое меню
+    menuBar()->addMenu(getLocalizedText("&Режимы", "&Modes")); // Пустое меню
 
-    QMenu *helpMenu = menuBar()->addMenu("&Help");
+    QMenu *helpMenu = menuBar()->addMenu(getLocalizedText("&Помощь", "&Help"));
     helpMenu->addAction(actRef);
     helpMenu->addAction(actAbout);
 
@@ -361,7 +361,7 @@ void MainWindow::setupUserInterface() {
     auto setupTable = [&](QTableWidget* table) {
         table->setColumnCount(3);
         table->setRowCount(14);
-        table->setHorizontalHeaderLabels({"Address", "Data", "Mnemonic"});
+        table->setHorizontalHeaderLabels({getLocalizedText("Адрес", "Address"), getLocalizedText("Данные", "Data"), getLocalizedText("Мнемоника", "Mnemonic")});
         table->verticalHeader()->setVisible(false);
 
         // Отключаем прокрутку
@@ -423,7 +423,7 @@ void MainWindow::setupUserInterface() {
     memoryLayout->addWidget(memoryTableLeft);
     memoryLayout->addWidget(memoryTableRight);
 
-    QGroupBox *ramGroupBox = new QGroupBox("RAM");
+    QGroupBox *ramGroupBox = new QGroupBox(getLocalizedText("Оперативная память", "RAM"));
     ramGroupBox->setLayout(memoryLayout);
     mainLayout->addWidget(ramGroupBox);
 
@@ -435,7 +435,7 @@ void MainWindow::setupUserInterface() {
     bottomLayout->setSpacing(10);
 
     // --- Блок регистров процессора ---
-    QGroupBox *registersGroupBox = new QGroupBox("CPU Registers");
+    QGroupBox *registersGroupBox = new QGroupBox(getLocalizedText("Регистры центрального процессора", "CPU Registers"));
     registersGroupBox->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
 
     QGridLayout *registersGrid = new QGridLayout(registersGroupBox);
@@ -468,7 +468,7 @@ void MainWindow::setupUserInterface() {
     bottomLayout->addWidget(registersGroupBox, 0);
 
     // --- Блок справки (Reference) ---
-    QGroupBox *referenceGroupBox = new QGroupBox("Reference");
+    QGroupBox *referenceGroupBox = new QGroupBox(getLocalizedText("Справка", "Reference"));
     referenceGroupBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QGridLayout *referenceGrid = new QGridLayout(referenceGroupBox);
@@ -476,8 +476,8 @@ void MainWindow::setupUserInterface() {
     referenceGrid->setColumnStretch(0, 0);
     referenceGrid->setColumnStretch(1, 1);
 
-    instructionNameLabel = new AutoTooltipLabel("Halt");
-    instructionTypeLabel = new AutoTooltipLabel("No-address command");
+    instructionNameLabel = new AutoTooltipLabel(getLocalizedText("Останов", "Halt"));
+    instructionTypeLabel = new AutoTooltipLabel(getLocalizedText("Безадресная команда", "No-address command"));
     instructionFormatLabel = new AutoTooltipLabel("000000");
 
     auto addLabel = [&](QString title, QLabel* valueLabel, int row, int col, int colspan, QSizePolicy::Policy hPolicy) {
@@ -496,9 +496,9 @@ void MainWindow::setupUserInterface() {
         referenceGrid->addWidget(valueLabel, row + 1, col, 1, colspan);
     };
 
-    addLabel("Format:", instructionFormatLabel, 0, 0, 1, QSizePolicy::Fixed);
-    addLabel("Type:", instructionTypeLabel, 0, 1, 1, QSizePolicy::Expanding);
-    addLabel("Name:", instructionNameLabel, 2, 0, 2, QSizePolicy::Expanding);
+    addLabel(getLocalizedText("Формат:", "Format:"), instructionFormatLabel, 0, 0, 1, QSizePolicy::Fixed);
+    addLabel(getLocalizedText("Тип:", "Type:"), instructionTypeLabel, 0, 1, 1, QSizePolicy::Expanding);
+    addLabel(getLocalizedText("Название:", "Name:"), instructionNameLabel, 2, 0, 2, QSizePolicy::Expanding);
 
     // Кнопка иконки справки
     refIconButton = new QPushButton(this);
@@ -511,7 +511,7 @@ void MainWindow::setupUserInterface() {
     bottomLayout->addWidget(referenceGroupBox, 1);
     mainLayout->addLayout(bottomLayout);
 
-    setWindowTitle("Command System Emulator PDP-11");
+    setWindowTitle(getLocalizedText("Эмулятор системы команд PDP-11", "Command System Emulator PDP-11"));
     resize(655, 673);
 
     // Инициализация таймеров
@@ -690,14 +690,14 @@ void MainWindow::synchronizeTableWithProgramCounter() {
 }
 
 void MainWindow::handleOpenFile() {
-    QString fileFilter = "PDP-11 code files (*.pdp);;All Files (*.*)";
-    QString selectedFileName = QFileDialog::getOpenFileName(this, "Open File", QString(), fileFilter);
+    QString fileFilter = getLocalizedText("Файлы кода PDP-11 (*.pdp);;Все файлы (*.*)", "PDP-11 code files (*.pdp);;All Files (*.*)");
+    QString selectedFileName = QFileDialog::getOpenFileName(this, getLocalizedText("Открыть файл", "Open File"), QString(), fileFilter);
 
     if (selectedFileName.isEmpty()) return;
 
     QFile dataFile(selectedFileName);
     if (!dataFile.open(QIODevice::ReadOnly)) {
-        QMessageBox::critical(this, "Error", "Unable to open file");
+        QMessageBox::critical(this, getLocalizedText("Ошибка", "Error"), getLocalizedText("Не удалось открыть файл", "Unable to open file"));
         return;
     }
 
@@ -757,8 +757,8 @@ void MainWindow::handleOpenFile() {
 }
 
 void MainWindow::handleSaveFile() {
-    QString fileFilter = "PDP-11 code files (*.pdp);;All Files (*.*)";
-    QString selectedFileName = QFileDialog::getSaveFileName(this, "Save File", QString(), fileFilter);
+    QString fileFilter = getLocalizedText("Файлы кода PDP-11 (*.pdp);;Все файлы (*.*)", "PDP-11 code files (*.pdp);;All Files (*.*)");
+    QString selectedFileName = QFileDialog::getSaveFileName(this, getLocalizedText("Сохранить файл", "Save File"), QString(), fileFilter);
 
     if (selectedFileName.isEmpty()) return;
 
@@ -768,7 +768,7 @@ void MainWindow::handleSaveFile() {
 
     QFile dataFile(selectedFileName);
     if (!dataFile.open(QIODevice::WriteOnly)) {
-        QMessageBox::critical(this, "Error", "Unable to open file for writing");
+        QMessageBox::critical(this, getLocalizedText("Ошибка", "Error"), getLocalizedText("Не удалось открыть файл для записи", "Unable to open file for writing"));
         return;
     }
 
@@ -792,7 +792,7 @@ void MainWindow::handleSaveFile() {
     }
 
     dataFile.close();
-    QMessageBox::information(this, "File Save", selectedFileName);
+    QMessageBox::information(this, getLocalizedText("Сохранение файла", "File Save"), selectedFileName);
 }
 
 void MainWindow::handleStepExecution() {
@@ -839,10 +839,10 @@ void MainWindow::handleProgramTick() {
 
 void MainWindow::handleTimerToggle(bool checked) {
     if (checked) {
-        actionTimerToggle->setToolTip("Timer on");
+        actionTimerToggle->setToolTip(getLocalizedText("Таймер включен", "Timer on"));
         hardwareTimer->start(100);
     } else {
-        actionTimerToggle->setToolTip("Timer off");
+        actionTimerToggle->setToolTip(getLocalizedText("Таймер выключен", "Timer off"));
         hardwareTimer->stop();
     }
 }
@@ -876,7 +876,7 @@ void MainWindow::handleRamAdd() {
     // Создание диалогового окна
     dialog = new QDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose); // Автоматическое удаление при закрытии
-    dialog->setWindowTitle("Additional RAM");
+    dialog->setWindowTitle(getLocalizedText("Дополнительное ОЗУ", "Additional RAM"));
     dialog->resize(700, 480);
 
     QVBoxLayout *dialogLayout = new QVBoxLayout(dialog);
@@ -886,7 +886,7 @@ void MainWindow::handleRamAdd() {
     auto setupDialogTable = [&](QTableWidget* table) {
         table->setColumnCount(3);
         table->setRowCount(14);
-        table->setHorizontalHeaderLabels({"Address", "Data", "Mnemonic"});
+        table->setHorizontalHeaderLabels({getLocalizedText("Адрес", "Address"), getLocalizedText("Данные", "Data"), getLocalizedText("Мнемоника", "Mnemonic")});
         table->verticalHeader()->setVisible(false);
 
         table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -936,7 +936,7 @@ void MainWindow::handleRamAdd() {
     memoryLayout->addWidget(dialogTableLeft);
     memoryLayout->addWidget(dialogTableRight);
 
-    QGroupBox *ramGroupBox = new QGroupBox("RAM");
+    QGroupBox *ramGroupBox = new QGroupBox(getLocalizedText("Оперативная память", "RAM"));
     ramGroupBox->setLayout(memoryLayout);
     dialogLayout->addWidget(ramGroupBox);
 
@@ -1101,7 +1101,7 @@ void MainWindow::handleScreenShow() {
 
     displayScreenDialog = new QDialog(this);
     displayScreenDialog->setAttribute(Qt::WA_DeleteOnClose);
-    displayScreenDialog->setWindowTitle("Display Screen");
+    displayScreenDialog->setWindowTitle(getLocalizedText("Экран дисплея", "Display Screen"));
     displayScreenDialog->resize(600, 350);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(displayScreenDialog);
@@ -1113,14 +1113,14 @@ void MainWindow::handleScreenShow() {
     screenTextModeWidget->setFont(QFont("Monospace", 10));
     screenTextModeWidget->setStyleSheet(themeCssScreenTab);
     screenTextModeWidget->setPlainText(screenTextBuffer);
-    tabWidget->addTab(screenTextModeWidget, "Text Mode");
+    tabWidget->addTab(screenTextModeWidget, getLocalizedText("Текстовый режим", "Text Mode"));
 
     // 2. Вкладка "ASCII Mode" (Дамп памяти)
     screenAsciiModeWidget = new QPlainTextEdit(displayScreenDialog);
     screenAsciiModeWidget->setReadOnly(true);
     screenAsciiModeWidget->setFont(QFont("Monospace", 10));
     screenAsciiModeWidget->setStyleSheet(themeCssScreenTab);
-    tabWidget->addTab(screenAsciiModeWidget, "ASCII Mode");
+    tabWidget->addTab(screenAsciiModeWidget, getLocalizedText("ASCII режим", "ASCII Mode"));
 
     // 3. Вкладка "Printer" (Устройство печати)
     printerModeWidget = new QPlainTextEdit(displayScreenDialog);
@@ -1128,7 +1128,7 @@ void MainWindow::handleScreenShow() {
     printerModeWidget->setFont(QFont("Monospace", 10));
     printerModeWidget->setStyleSheet(themeCssScreenTab);
     printerModeWidget->setPlainText(printerTextBuffer);
-    tabWidget->addTab(printerModeWidget, "Printer");
+    tabWidget->addTab(printerModeWidget, getLocalizedText("Принтер", "Printer"));
 
     // Подключение фильтра для чтения клавиатуры
     screenTextModeWidget->installEventFilter(this);
@@ -1207,13 +1207,14 @@ void MainWindow::handleReference() {
     // Получаем путь к директории, откуда запущен сам эмулятор (обычно это папка build)
     QString appDirPath = QCoreApplication::applicationDirPath();
 
-    // Формируем полный путь к файлу справки
-    QString pdfFilePath = appDirPath + QDir::separator() + referenceFileName;
+    // Формируем полный путь к файлу справки с учетом локали системы
+    QString pdfFilePath = appDirPath + QDir::separator() + getReferenceFileName();
 
     // Проверяем, существует ли файл физически на диске
     if (!QFile::exists(pdfFilePath)) {
         // Если файла нет, можно тоже показать это стандартное сообщение
-        QMessageBox::warning(this, "Error", "Failed to launch help.");
+        QMessageBox::warning(this, getLocalizedText("Ошибка", "Error"), getLocalizedText("Не удалось запустить справку.", "Failed to launch help."));
+
         return;
     }
 
@@ -1222,10 +1223,10 @@ void MainWindow::handleReference() {
 
     // Если операционная система не смогла открыть файл (нет программы для PDF и т.д.)
     if (!success) {
-        QMessageBox::warning(this, "Error", "Failed to launch help.");
+        QMessageBox::warning(this, getLocalizedText("Ошибка", "Error"), getLocalizedText("Не удалось запустить справку.", "Failed to launch help."));
     }
 }
 
 void MainWindow::handleAbout() {
-    QMessageBox::about(this, "About", "Version 1.0\nDepartment of Computer Science\nCopyright © 2026");
+    QMessageBox::about(this, getLocalizedText("О программе", "About"), getLocalizedText("Версия 1.0\nФакультет компьютерных наук\nCopyright © 2026", "Version 1.0\nDepartment of Computer Science\nCopyright © 2026"));
 }

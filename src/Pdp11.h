@@ -5,6 +5,15 @@
 #include <QString>
 #include <array>
 #include <functional>
+#include <QLocale>
+
+/**
+ * @brief Глобальный хелпер локализации строк.
+ * Будет автоматически доступен во всех файлах, подключающих Pdp11.h.
+ */
+inline QString getLocalizedText(const QString& ru, const QString& en) {
+    return (QLocale::system().language() == QLocale::Russian) ? ru : en;
+}
 
 /**
  * @brief Типы математических операций для корректного обновления флагов (NZVC).

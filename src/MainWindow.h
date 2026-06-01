@@ -212,7 +212,12 @@ private:
     bool isUpdatingInterface = false; /// Флаг блокировки рекурсивного обновления UI
     uint16_t currentViewStartAddress = 001000; /// Базовый адрес левой таблицы RAM
 
-    const QString referenceFileName = "PDP11.pdf"; /// Имя файла документации
+    /**
+     * @brief Возвращает имя файла справки в зависимости от текущей локали системы.
+     */
+    QString getReferenceFileName() const {
+        return getLocalizedText("PDP11 RU.pdf", "PDP11.pdf");
+    }
 
     // ==========================================
     // ТЕМАТИЗАЦИЯ И СТИЛИ

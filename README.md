@@ -27,8 +27,9 @@ The emulator is written in **C++17** using the **Qt6** framework. It supports on
     *   Terminal / Display (TPS `177564`, TPB `177566`)
     *   Printer (`177514`, `177516`)
     *   Hardware timer with interrupt generation via vector `100(8)`.
-*   **Dynamic UI theme:** Automatic support for light and dark themes depending on your operating system settings (Windows / Linux).
+*   **Dynamic UI theme:** Automatic support for light and dark themes depending on your operating system settings (Linux / Windows).
 *   **Help system:** Built-in context help for commands and an included detailed reference guide in [**PDF**](Docs/PDP11.pdf) and [**Markdown**](Docs/PDP11.md) formats.
+*   **Bilingual support:** The application interface, built-in disassembler, context help for commands and detailed reference guide automatically adapt to your system's language (English / Russian).
 *   **Save and load:** Support for importing and exporting programs in the `.pdp` format.
 
 ![Windows Light Mode](assets/Pictures/windows_light.png)
@@ -98,7 +99,13 @@ The project supports building a static `.exe` file for Windows directly from Lin
    ```bash
    sudo pacman -S mingw-w64-gcc
    
-   echo -e "\n[ownstuff]\nSigLevel = Optional TrustAll\nServer = https://ftp.f3l.de/~martchus/\$repo/os/\$arch\nServer = https://martchus.dyn.f3l.de/repo/arch/\$repo/os/\$arch" | sudo tee -a /etc/pacman.conf
+   if ! grep -q "ownstuff" /etc/pacman.conf; then
+       echo -e "
+   [ownstuff]
+   SigLevel = Optional TrustAll
+   Server = https://ftp.f3l.de/~martchus/\$repo/os/\$arch
+   Server = https://martchus.dyn.f3l.de/repo/arch/\$repo/os/\$arch" | sudo tee -a /etc/pacman.conf > /dev/null
+   fi
    
    sudo pacman-key --keyserver keyserver.ubuntu.com --recv-keys B9E36A7275FC61B464B67907E06FE8F53CDC6A4C
    sudo pacman-key --finger B9E36A7275FC61B464B67907E06FE8F53CDC6A4C
