@@ -95,6 +95,21 @@ public:
     uint16_t readValue(uint16_t address, bool isByteOperation);
     void writeValue(uint16_t address, uint16_t value, bool isByteOperation);
 
+    // ==========================================
+    // РЕГИСТРЫ ГРАФИЧЕСКОГО ДИСПЛЕЯ (MMIO)
+    // ==========================================
+    static constexpr int SCREEN_SIZE = 64; // Разрешение графического экрана
+
+    uint16_t displayX = 0;     // Координата X (177570)
+    uint16_t displayY = 0;     // Координата Y (177572)
+    uint16_t displayColor = 0; // Цвет / Триггер отрисовки (177574)
+
+    /**
+     * @brief Коллбэк для отрисовки точки на экране.
+     * Сигнатура: void(uint8_t x, uint8_t y, uint8_t colorIndex)
+     */
+    std::function<void(uint8_t, uint8_t, uint8_t)> pixelOutputCallback;
+
 private:
     // ==========================================
     // ВНУТРЕННЯЯ ЛОГИКА ИСПОЛНЕНИЯ

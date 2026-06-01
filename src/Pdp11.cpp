@@ -15,6 +15,11 @@ void Pdp11::resetProcessor() {
     // Сброс состояния внешних устройств
     keyboardStatusRegister = 0;
     keyboardDataRegister = 0;
+
+    // Сброс графического дисплея
+    displayX = 0;
+    displayY = 0;
+    displayColor = 0;
 }
 
 // ==========================================
@@ -80,6 +85,16 @@ uint16_t Pdp11::readValue(uint16_t address, bool isByteOperation) {
         return isByteOperation ? (data & 0xFF) : data;
     }
 
+    // 5. Графический дисплей
+    if (targetAddress == 0177570) {
+        return isByteOperation ? (displayX & 0xFF) : displayX;
+    }
+    if (targetAddress == 0177572) {
+        return isByteOperation ? (displayY & 0xFF) : displayY;
+    }
+    if (targetAddress == 0177574) {
+        return isByteOperation ? (displayColor & 0xFF) : displayColor;
+    }
 
     // --- Оперативная память ---
     uint16_t word = memory[targetAddress / 2];
@@ -120,6 +135,27 @@ void Pdp11::writeValue(uint16_t address, uint16_t value, bool isByteOperation) {
             keyboardStatusRegister |= 0100;
         } else {
             keyboardStatusRegister &= ~0100;
+        }
+        return;
+    }
+
+    // 4. Графический дисплей
+    if (targetAddress == 0177570) {
+        // Ограничиваем координату X текущим размером экрана
+        displayX = value % SCREEN_SIZE;
+        return;
+    }
+    if (targetAddress == 0177572) {
+        // Ограничиваем координату Y текущим размером экрана
+        displayY = value % SCREEN_SIZE;
+        return;
+    }
+    if (targetAddress == 0177574) {
+        displayColor = value & 0xFF; // Код цвета (0..15 для палитры)
+        if (pixelOutputCallback) {
+            pixelOutputCallback(static_cast<uint8_t>(displayX),
+                                static_cast<uint8_t>(displayY),
+                                static_cast<uint8_t>(displayColor));
         }
         return;
     }

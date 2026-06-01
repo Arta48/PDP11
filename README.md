@@ -11,7 +11,7 @@
 
 **Command System Emulator PDP-11** is a cross-platform emulator of the classic PDP-11 architecture with a graphical user interface. The project was created for educational purposes to study computer architecture, assembly language, and the principles of processor operation.
 
-The emulator is written in **C++17** using the **Qt6** framework. It supports on-the-fly machine code disassembly, step-by-step debugging, and operation with virtual external devices (display, keyboard, printer).
+The emulator is written in **C++17** using the **Qt6** framework. It supports on-the-fly machine code disassembly, step-by-step debugging, and operation with virtual external devices (display, keyboard, printer, graphics display).
 
 ---
 
@@ -26,7 +26,9 @@ The emulator is written in **C++17** using the **Qt6** framework. It supports on
     *   Keyboard (TKS `177560`, TKB `177562`)
     *   Terminal / Display (TPS `177564`, TPB `177566`)
     *   Printer (`177514`, `177516`)
+    *   Graphical display (X coordinate `177570`, Y coordinate `177572`, Color / Draw trigger `177574`)
     *   Hardware timer with interrupt generation via vector `100(8)`.
+*   **Graphical Mode:** Supports rendering a 64x64 pixel grid with a custom 16-color palette (CGA / EGA-style) via procedural assembly commands.
 *   **Dynamic UI theme:** Automatic support for light and dark themes depending on your operating system settings (Linux / Windows).
 *   **Help system:** Built-in context help for commands and an included detailed reference guide in [**PDF**](Docs/PDP11.pdf) and [**Markdown**](Docs/PDP11.md) formats.
 *   **Bilingual support:** The application interface, built-in disassembler, context help for commands and detailed reference guide automatically adapt to your system's language (English / Russian).
@@ -47,6 +49,9 @@ The `Programs/` folder contains ready-made programs for testing the emulator (de
 5.  **16-bit Adder and Subtractor** — multi-digit addition and subtraction. Features a binary-to-decimal ASCII conversion algorithm for outputting results to the terminal.
 6.  **16-bit Integer Calculator** — a complete 4-function calculator (+, -, *, /). Implements software-level multiplication and division algorithms that are not part of the standard PDP-11 instruction set.
 7.  **Stopwatch** — demonstrates the `WAIT` instruction and hardware timer. The program counts real-world seconds in register R0 by handling 10 timer interrupts (100ms each) per second, keeping the CPU in a low-power state between ticks.
+8.  **Yellow Dot** — simplest test for the graphical subsystem. Sequentially writes coordinates and a color code to draw a single yellow pixel, then halts.
+9.  **Rainbow Flag** — procedural graphics generation. Implements nested coordinate loops to draw a diagonal color gradient across the 64x64 screen.
+10. **Bouncing Pixel** — real-time physical simulation. Computes boundary collision detection, reverses direction on impact, cycles colors on bounce, and uses duty cycle rendering optimization to prevent flickering.
 
 ---
 

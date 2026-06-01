@@ -77,6 +77,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         }
     };
 
+    // Инициализация графического буфера, формат RGB32
+    graphicsScreenBuffer = QImage(Pdp11::SCREEN_SIZE, Pdp11::SCREEN_SIZE, QImage::Format_RGB32);
+    graphicsScreenBuffer.fill(Qt::black);
+
+    // Связываем аппаратное событие отрисовки пикселя с методом UI
+    processor.pixelOutputCallback = [this](uint8_t x, uint8_t y, uint8_t colorIndex) {
+        drawPixelOnScreen(x, y, colorIndex);
+    };
+
     // ==========================================
     // ИНИЦИАЛИЗАЦИЯ ИНТЕРФЕЙСА
     // ==========================================
@@ -1055,6 +1064,11 @@ bool MainWindow::handleTableScroll(QTableWidget *table, QKeyEvent *keyEvent, QTa
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    // Если изменился размер окна дисплея, перерисовываем графический экран под новые габариты
+    if (displayScreenDialog && watched == displayScreenDialog && event->type() == QEvent::Resize) {
+        updateGraphicsScreenView();
+    }
+
     if (event->type() == QEvent::KeyPress) {
         QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
 
@@ -1068,7 +1082,18 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
             return true; // Блокируем стандартный ввод Qt
         }
 
-        // --- 2. Обработка скроллинга таблиц RAM ---
+        // --- 2. Обработка ввода с клавиатуры для Экрана ---
+        if (displayScreenDialog && watched == displayScreenDialog) {
+            QString text = keyEvent->text();
+            if (!text.isEmpty()) {
+                uint8_t charCode = static_cast<uint8_t>(text.at(0).toLatin1());
+                processor.provideKeyboardInput(charCode);
+                return true; // Блокируем клавиши управления, чтобы они не переключали табы интерфейса
+            }
+        }
+
+
+        // --- 3. Обработка скроллинга таблиц RAM ---
         QTableWidget *table = qobject_cast<QTableWidget *>(watched);
         if (table) {
             // Главное окно
@@ -1104,6 +1129,9 @@ void MainWindow::handleScreenShow() {
     displayScreenDialog->setWindowTitle(getLocalizedText("Экран дисплея", "Display Screen"));
     displayScreenDialog->resize(600, 350);
 
+    // Устанавливаем фильтр событий на окно, чтобы отслеживать изменение его размеров
+    displayScreenDialog->installEventFilter(this);
+
     QVBoxLayout *mainLayout = new QVBoxLayout(displayScreenDialog);
     QTabWidget *tabWidget = new QTabWidget(displayScreenDialog);
 
@@ -1122,6 +1150,16 @@ void MainWindow::handleScreenShow() {
     screenAsciiModeWidget->setStyleSheet(themeCssScreenTab);
     tabWidget->addTab(screenAsciiModeWidget, getLocalizedText("ASCII режим", "ASCII Mode"));
 
+    // 2.5 Вкладка "Graphics Mode" (Растровый дисплей)
+    screenGraphicsWidget = new QLabel(displayScreenDialog);
+    screenGraphicsWidget->setAlignment(Qt::AlignCenter);
+    screenGraphicsWidget->setStyleSheet(themeCssScreenTab);
+
+    // Теперь QTabWidget будет сам диктовать размер нашему экрану, избегая бесконечного цикла ресайза.
+    screenGraphicsWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+
+    tabWidget->addTab(screenGraphicsWidget, getLocalizedText("Графический режим", "Graphics Mode"));
+
     // 3. Вкладка "Printer" (Устройство печати)
     printerModeWidget = new QPlainTextEdit(displayScreenDialog);
     printerModeWidget->setReadOnly(true);
@@ -1138,11 +1176,73 @@ void MainWindow::handleScreenShow() {
     connect(tabWidget, &QTabWidget::currentChanged, [this](int index) {
         if (index == 1) {
             updateAsciiModeView();
+        } else if (index == 2) {
+            updateGraphicsScreenView();
         }
     });
 
     updateAsciiModeView();
     displayScreenDialog->show();
+}
+
+void MainWindow::drawPixelOnScreen(uint8_t x, uint8_t y, uint8_t colorIndex) {
+    if (x >= Pdp11::SCREEN_SIZE || y >= Pdp11::SCREEN_SIZE) return;
+
+    // Классическая 16-цветная палитра (CGA/EGA-стиль)
+    static const std::array<QRgb, 16> palette16 = {
+        qRgb(0, 0, 0),       // 0: Глубокий черный
+        qRgb(0, 0, 192),     // 1: Темно-синий
+        qRgb(0, 192, 0),     // 2: Темно-зеленый
+        qRgb(0, 192, 192),   // 3: Темно-голубой
+        qRgb(192, 0, 0),     // 4: Темно-красный
+        qRgb(192, 0, 192),   // 5: Темно-фиолетовый
+        qRgb(139, 69, 19),   // 6: Коричневый (охра)
+        qRgb(200, 200, 200), // 7: Светло-серый
+        qRgb(96, 96, 96),    // 8: Темно-серый
+        qRgb(0, 100, 255),   // 9: Яркий неоновый синий
+        qRgb(0, 255, 0),     // 10: Чистый ярко-зеленый (лайм)
+        qRgb(0, 255, 255),   // 11: Чистый циан (ярко-голубой)
+        qRgb(255, 0, 0),     // 12: Чистый алый (ярко-красный)
+        qRgb(255, 0, 255),   // 13: Яркая фуксия (ярко-фиолетовый)
+        qRgb(255, 255, 0),   // 14: Чистый лимонный (ярко-желтый)
+        qRgb(255, 255, 255)  // 15: Чистый белый
+    };
+
+    // Рисуем точку в буфер
+    QRgb color = palette16[colorIndex & 0x0F];
+    graphicsScreenBuffer.setPixel(x, y, color);
+
+    // Если графический экран открыт на чтение, обновляем изображение
+    if (displayScreenDialog && displayScreenDialog->isVisible()) {
+        updateGraphicsScreenView();
+    }
+}
+
+void MainWindow::updateGraphicsScreenView() {
+    if (screenGraphicsWidget.isNull()) return;
+
+    // Получаем родительский виджет (страницу QTabWidget)
+    QWidget *parent = screenGraphicsWidget->parentWidget();
+    if (!parent) return;
+
+    // Получаем системные отступы родительского контейнера
+    QMargins margins = parent->contentsMargins();
+
+    // Вычисляем точную чистую ширину и высоту, доступную для нашего экрана
+    int availableWidth = parent->width() - margins.left() - margins.right();
+    int availableHeight = parent->height() - margins.top() - margins.bottom();
+
+    // Экран должен оставаться квадратным, поэтому берем минимальную из сторон
+    int side = std::min(availableWidth, availableHeight);
+
+    // Добавляем небольшой внутренний отступ (например, по 10 пикселей с каждой стороны),
+    // чтобы экран не прилипал вплотную к границам вкладки
+    side = std::max(Pdp11::SCREEN_SIZE, side - 20);
+
+    // Масштабируем буфер до вычисленного пиксель-в-пиксель размера
+    QPixmap scaledPixmap = QPixmap::fromImage(graphicsScreenBuffer).scaled(side, side, Qt::KeepAspectRatio, Qt::FastTransformation);
+
+    screenGraphicsWidget->setPixmap(scaledPixmap);
 }
 
 void MainWindow::updateAsciiModeView() {
@@ -1189,6 +1289,11 @@ void MainWindow::handleScreenClear() {
 
     if (screenAsciiModeWidget) {
         screenAsciiModeWidget->clear();
+    }
+
+    graphicsScreenBuffer.fill(Qt::black);
+    if (screenGraphicsWidget) {
+        updateGraphicsScreenView();
     }
 
     if (printerModeWidget) {
