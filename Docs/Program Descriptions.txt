@@ -445,3 +445,119 @@ Address   Data    Mnemonic     Description
 001106    012701  MOV #12, R1  Reset tick counter to 10
 001110    000012
 001112    000002  RTI          Return to main program (at address 1014)
+
+
+8. Program "Yellow Dot"
+
+Logic: The program serves as the simplest diagnostic test for the emulator's graphic subsystem (Graphics Mode). It sequentially writes the X coordinate (octal 12 = 10 dec) to display register 177570, the Y coordinate (octal 12 = 10 dec) to display register 177572, and the color code (octal 16 = 14 dec, representing yellow) to display data register 177574. Writing to register 177574 instantly triggers the rendering of a single yellow pixel on the screen, after which the CPU executes a HALT instruction and stops.
+
+Address  Value   Mnemonic           Description
+001000   012737  MOV #12, @#177570  Write X coordinate to display register
+001002   000012                     (X value = 10 dec = 12 oct)
+001004   177570                     (address of display X register)
+001006   012737  MOV #12, @#177572  Write Y coordinate to display register
+001010   000012                     (Y value = 10 dec = 12 oct)
+001012   177572                     (address of display Y register)
+001014   012737  MOV #16, @#177574  Write color code and trigger pixel draw
+001016   000016                     (color code 14 dec = 16 oct - Yellow)
+001020   177574                     (address of display data register)
+001022   000000  HALT               Halt program execution
+
+
+9. Program "Rainbow Flag"
+
+Logic: The program demonstrates procedural graphics generation on the emulator's 64x64 pixel display. It implements two nested loops: an outer loop for the Y coordinate (register R1, 0 to 63) and an inner loop for the X coordinate (register R0, 0 to 63). For each pixel, the color is calculated in register R2 as the sum of current coordinates: R2 = X + Y. This sum is written to display data register 177574, where it is masked to a 16-color palette, creating a beautiful repeating diagonal rainbow pattern (gradient stripes). Once the entire screen is filled, the program terminates via a HALT instruction.
+
+Address  Value   Mnemonic          Description
+001000   005001  CLR R1            Initialize Y = 0 (outer loop)
+001002   005000  CLR R0            Initialize X = 0 (inner loop)
+001004   010002  MOV R0, R2        Copy X coordinate to R2
+001006   060102  ADD R1, R2        Addition: R2 = X + Y (calculate color)
+001010   010037  MOV R0, @#177570  Write X coordinate to display register
+001012   177570                    (address of display X register)
+001014   010137  MOV R1, @#177572  Write Y coordinate to display register
+001016   177572                    (address of display Y register)
+001020   010237  MOV R2, @#177574  Write color code and trigger pixel draw
+001022   177574                    (address of display data register)
+001024   005200  INC R0            X++ (advance to next pixel in row)
+001026   020027  CMP R0, #100      Row complete (X == 64 dec = 100 oct)?
+001030   000100                    (value 64)
+001032   001364  BNE 1004          If row not complete, jump to LOOP_X (1004)
+001034   005201  INC R1            Y++ (advance to next row)
+001036   020127  CMP R1, #100      Screen filled (Y == 64 dec = 100 oct)?
+001040   000100                    (value 64)
+001042   001357  BNE 1002          If screen not filled, jump to LOOP_Y (1002)
+001044   000000  HALT              Halt program execution
+
+
+10. Program "Bouncing Pixel"
+
+Logic: The program implements a smooth diagonal bouncing animation on the 64x64 graphical display of the emulator, featuring physically correct boundary collision and color changes on every bounce. To eliminate flickering on a slow emulator, it uses duty cycle frame optimization: erasing the old pixel and drawing the new one at the updated coordinates is executed sequentially in just six rapid machine instructions, while the calculations for the next step are done while the pixel is fully visible. The step increments are set asymmetrically (DX = 2, DY = 1), ensuring the dot covers the entire screen space without entering a repetitive loop.
+
+Address  Value   Mnemonic              Description
+001000   012706  MOV #1000, SP         Initialize Stack Pointer
+001002   001000                        (stack base address)
+001004   012700  MOV #10, R0           Set initial X coordinate
+001006   000010                        (X coordinate value = 8)
+001010   012701  MOV #20, R1           Set initial Y coordinate
+001012   000020                        (Y coordinate value = 16)
+001014   012702  MOV #2, R2            Set step increment along X
+001016   000002                        (DX = 2 step for asymmetry)
+001020   012703  MOV #1, R3            Set step increment along Y
+001022   000001                        (DY = 1 step)
+001024   012704  MOV #12, R4           Set initial pixel color
+001026   000012                        (color code 12 - Red)
+001030   010037  MOV R0, @#1500        Save current X coordinate to RAM
+001032   001500                        (old X buffer address)
+001034   010137  MOV R1, @#1502        Save current Y coordinate to RAM
+001036   001502                        (old Y buffer address)
+001040   060200  ADD R2, R0            Calculate new X (X = X + DX)
+001042   005700  TST R0                Check X boundary status
+001044   100004  BPL 1056              If X >= 0, proceed to check max bounds
+001046   005402  NEG R2                Else: left bounce, reverse DX (DX = -DX)
+001050   012700  MOV #2, R0            Correct X coordinate inside screen bounds
+001052   000002                        (X value = 2)
+001054   005204  INC R4                Change pixel color (R4 = R4 + 1)
+001056   020027  CMP R0, #77           Compare X to right boundary
+001058   000077                        (boundary 63 dec = 77 oct)
+001062   002404  BLT 1074              If X < 63, proceed to calculate Y
+001064   005402  NEG R2                Else: right bounce, reverse DX (DX = -DX)
+001066   012700  MOV #75, R0           Correct X inside bounds
+001070   000075                        (X value = 61 dec)
+001072   005204  INC R4                Change pixel color (R4 = R4 + 1)
+001074   060301  ADD R3, R1            Calculate new Y (Y = Y + DY)
+001076   005701  TST R1                Check Y boundary status
+001100   100004  BPL 1112              If Y >= 0, proceed to check max bounds
+001102   005403  NEG R3                Else: top bounce, reverse DY (DY = -DY)
+001104   012701  MOV #1, R1            Correct Y coordinate inside bounds
+001106   000001                        (Y value = 1)
+001110   005204  INC R4                Change pixel color (R4 = R4 + 1)
+001112   020127  CMP R1, #77           Compare Y to bottom boundary
+001114   000077                        (boundary 63 dec = 77 oct)
+001116   002404  BLT 1130              If Y < 63, proceed to render
+001120   005403  NEG R3                Else: bottom bounce, reverse DY (DY = -DY)
+001122   012701  MOV #76, R1           Correct Y inside bounds
+001124   000076                        (Y value = 62 dec)
+001126   005204  INC R4                Change pixel color (R4 = R4 + 1)
+001130   042704  BIC #177760, R4       Limit R4 color value to 1..15
+001132   177760                        (color bits mask)
+001134   005704  TST R4                Check if color is black (0)
+001136   001003  BNE 1146              If not black, proceed
+001140   012704  MOV #1, R4            Else: force change 0 to Blue (1)
+001142   000001                        (blue color code)
+001144   013737  MOV @#1500, @#177570  Atomic transfer: Erase old X coordinate
+001146   001500                        (old X buffer address)
+001150   177570                        (display X register)
+001152   013737  MOV @#1502, @#177572  Atomic transfer: Erase old Y coordinate
+001154   001502                        (old Y buffer address)
+001156   177572                        (display Y register)
+001160   005037  CLR @#177574          Atomic transfer: Write black color (0)
+001162   177574                        (display data register)
+001164   010037  MOV R0, @#177570      Draw new position: X coordinate
+001166   177570                        (display X register)
+001170   010137  MOV R1, @#177572      Draw new position: Y coordinate
+001172   177572                        (display Y register)
+001174   010437  MOV R4, @#177574      Draw new position: Pixel Color
+001176   177574                        (display data register)
+001200   000137  JMP 1030              Jump back to start new frame (LOOP)
+001202   001030                        (loop start address)

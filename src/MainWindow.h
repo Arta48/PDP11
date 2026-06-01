@@ -298,6 +298,22 @@ private:
     void updateDialogUserInterface();
     void updateAsciiModeView();
     bool handleTableScroll(QTableWidget *table, QKeyEvent *keyEvent, QTableWidget *leftTable, QTableWidget *rightTable, uint16_t &startAddress, std::function<void()> updateFunc);
+
+    // ==========================================
+    // КОМПОНЕНТЫ ГРАФИЧЕСКОГО ДИСПЛЕЯ
+    // ==========================================
+    QPointer<QLabel> screenGraphicsWidget; // Виджет отображения растрового экрана
+    QImage graphicsScreenBuffer;           // Буфер изображения 64x64 пикселей
+
+    /**
+     * @brief Метод отрисовки точки на растровом экране.
+     */
+    void drawPixelOnScreen(uint8_t x, uint8_t y, uint8_t colorIndex);
+
+    /**
+     * @brief Обновление масштабированного изображения на экране.
+     */
+    void updateGraphicsScreenView();
 };
 
 #endif // MAINWINDOW_H
