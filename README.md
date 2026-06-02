@@ -2,11 +2,13 @@
 
 # 🖥️ Command System Emulator PDP-11
 
-![Linux Dark Mode](assets/Pictures/linux_dark.png)
+| 🐧 Linux (Dark) | 🪟 Windows (Light) | 🍎 macOS (Dark) |
+| :---: | :---: | :---: |
+| ![Linux](assets/Pictures/linux_dark.png) | ![Windows](assets/Pictures/windows_light.png) | ![macOS](assets/Pictures/macos_dark.png) |
 
 ![C++17](https://img.shields.io/badge/C++-17-blue.svg)
 ![Qt6](https://img.shields.io/badge/Qt-6.0+-green.svg)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey.svg)
+![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 **Command System Emulator PDP-11** is a cross-platform emulator of the classic PDP-11 architecture with a graphical user interface. The project was created for educational purposes to study computer architecture, assembly language, and the principles of processor operation.
@@ -29,12 +31,10 @@ The emulator is written in **C++17** using the **Qt6** framework. It supports on
     *   Graphical display (X coordinate `177570`, Y coordinate `177572`, Color / Draw trigger `177574`)
     *   Hardware timer with interrupt generation via vector `100(8)`.
 *   **Graphical Mode:** Supports rendering a 64x64 pixel grid with a custom 16-color palette (CGA / EGA-style) via procedural assembly commands.
-*   **Dynamic UI theme:** Automatic support for light and dark themes depending on your operating system settings (Linux / Windows).
+*   **Dynamic UI theme:** Automatic support for light and dark themes depending on your operating system settings (Linux / Windows / macOS).
 *   **Help system:** Built-in context help for commands and an included detailed reference guide in [**PDF**](Docs/PDP11.pdf) and [**Markdown**](Docs/PDP11.md) formats.
 *   **Bilingual support:** The application interface, built-in disassembler, context help for commands and detailed reference guide automatically adapt to your system's language (English / Russian).
 *   **Save and load:** Support for importing and exporting programs in the `.pdp` format.
-
-![Windows Light Mode](assets/Pictures/windows_light.png)
 
 ---
 
@@ -82,6 +82,32 @@ The project includes an automated packaging script that builds and installs the 
 sh setup_package.sh
 ```
 *After installation, you can launch the emulator directly from your Desktop Environment's application menu or by simply typing `pdp11` in the terminal. To uninstall, run `sudo pacman -R pdp11`.*
+
+### 🍎 Build and Installation on macOS (macOS 11.0+)
+
+The simplest way is to download the pre-compiled universal **`PDP11.dmg`** directly from the [**Releases**](https://github.com/Arta48/PDP11/releases) page. It natively supports both Apple Silicon (M1 / M2 / M3) and Intel-based Macs.
+
+To build the project from source manually:
+
+1. Install the necessary dependencies via the Homebrew package manager (CMake, Qt6):
+   ```bash
+   brew install cmake qt6
+   ```
+2. Clone the repository:
+   ```bash
+   git clone https://github.com/Arta48/PDP11.git
+   cd PDP11
+   ```
+3. Configure the build system, compile, and bundle all Qt dependencies into a portable `.dmg` installer:
+   ```bash
+   # Configure and build
+   cmake -B build -DCMAKE_BUILD_TYPE=Release
+   cmake --build build -j$(sysctl -n hw.ncpu)
+
+   # Link dependencies into the app bundle and generate DMG
+   macdeployqt build/PDP11.app -dmg
+   ```
+   *The generated `PDP11.dmg` file will be located inside the `build/` directory.*
 
 ### 🪟 Build on Windows
 
