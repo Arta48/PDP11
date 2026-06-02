@@ -26,16 +26,13 @@
 #include <QFontDatabase>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MAC)
     // Проверяем, есть ли шрифт "Segoe MDL2 Assets" уже в системе
     bool hasSystemIcons = QFontDatabase::families().contains("Segoe MDL2 Assets");
 
     if (!hasSystemIcons) {
-        // Если системного шрифта нет (например, под Wine), грузим из ресурсов
+        // Если системного шрифта нет (например, под Wine / macOS), грузим из ресурсов
         int fontId = QFontDatabase::addApplicationFont(":/segmdl2.ttf");
-        if (fontId == -1) {
-            // Ошибка загрузки (файла нет в ресурсах)
-        }
     }
 
     // Устанавливаем стиль Fusion и оборачиваем его в наш прокси для иконок
@@ -43,8 +40,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     qApp->setStyle(new Win10StyleProxy(fusionStyle));
 
     // Глобальный фикс шрифтов (UI и таблицы)
+    #ifdef Q_OS_WIN
     qApp->setFont(QFont("Segoe UI", 9));
     QFont::insertSubstitution("Monospace", "Consolas");
+    #elif defined(Q_OS_MAC)
+    // Явно задаем системный шрифт Apple (San Francisco) нативного размера 13pt
+    qApp->setFont(QFont(".AppleSystemUIFont", 13));
+    // Настраиваем качественный нативный моноширинный шрифт Menlo для таблиц
+    QFont::insertSubstitution("Monospace", "Menlo");
+    #endif
 #endif
 
     // 1. Применяем тему (установка переменных CSS и палитры) БЕЗ обновления виджетов
@@ -106,7 +110,7 @@ void MainWindow::applyTheme(bool forceUpdateWidgets) {
     QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", QSettings::NativeFormat);
     newIsDarkMode = (settings.value("AppsUseLightTheme", 1).toInt() == 0);
 #else
-    // Для Linux Qt сам берет тему из системы, проверяем ее цвет
+    // Для Linux и macOS Qt сам берет тему из системы, проверяем ее цвет
     newIsDarkMode = qApp->palette().color(QPalette::Window).lightness() < 128;
 #endif
 
@@ -118,6 +122,7 @@ void MainWindow::applyTheme(bool forceUpdateWidgets) {
     isDarkMode = newIsDarkMode;
     themeInitialized = true;
 
+    // Применяем темную палитру Fusion-стиля для Windows
 #ifdef Q_OS_WIN
     if (isDarkMode) {
         QPalette darkPalette;
@@ -232,6 +237,7 @@ void MainWindow::changeEvent(QEvent *event) {
 
 void MainWindow::setupUserInterface() {
     QStyle *style = QApplication::style();
+    menuBar()->setNativeMenuBar(false); // для macOS, Меню теперь будет отображаться внутри окна
 
     // ==========================================
     // 1. СОЗДАНИЕ ДЕЙСТВИЙ (ACTIONS)
@@ -377,7 +383,7 @@ void MainWindow::setupUserInterface() {
         table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         table->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-        table->setFont(QFont("Monospace", 9, QFont::Bold));
+        table->setFont(QFont("Monospace", MONO_FONT_SIZE, QFont::Bold));
         table->setColumnWidth(0, 70);
         table->setColumnWidth(1, 70);
         table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
@@ -459,7 +465,7 @@ void MainWindow::setupUserInterface() {
         QLineEdit *editor = new QLineEdit("000000");
         editor->setFixedWidth(70);
         editor->setAlignment(Qt::AlignCenter);
-        editor->setFont(QFont("Monospace", 9, QFont::Bold));
+        editor->setFont(QFont("Monospace", MONO_FONT_SIZE, QFont::Bold));
         editor->setStyleSheet(themeCssEditor); // Применение стиля
         editor->setValidator(new QRegularExpressionValidator(octalRegex, this));
         editor->setMaxLength(6);
@@ -492,7 +498,7 @@ void MainWindow::setupUserInterface() {
     auto addLabel = [&](QString title, QLabel* valueLabel, int row, int col, int colspan, QSizePolicy::Policy hPolicy) {
         valueLabel->setMinimumWidth(80);
         valueLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        valueLabel->setFont(QFont("Monospace", 9, QFont::Bold));
+        valueLabel->setFont(QFont("Monospace", MONO_FONT_SIZE, QFont::Bold));
         valueLabel->setStyleSheet(themeCssEditor); // Применение стиля
         valueLabel->setSizePolicy(hPolicy, QSizePolicy::Preferred);
 
@@ -900,7 +906,7 @@ void MainWindow::handleRamAdd() {
 
         table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         table->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        table->setFont(QFont("Monospace", 9, QFont::Bold));
+        table->setFont(QFont("Monospace", MONO_FONT_SIZE, QFont::Bold));
 
         table->setColumnWidth(0, 70);
         table->setColumnWidth(1, 70);
@@ -1138,7 +1144,7 @@ void MainWindow::handleScreenShow() {
     // 1. Вкладка "Text Mode" (Консоль терминала)
     screenTextModeWidget = new QPlainTextEdit(displayScreenDialog);
     screenTextModeWidget->setReadOnly(true);
-    screenTextModeWidget->setFont(QFont("Monospace", 10));
+    screenTextModeWidget->setFont(QFont("Monospace", MONO_FONT_SIZE));
     screenTextModeWidget->setStyleSheet(themeCssScreenTab);
     screenTextModeWidget->setPlainText(screenTextBuffer);
     tabWidget->addTab(screenTextModeWidget, getLocalizedText("Текстовый режим", "Text Mode"));
@@ -1146,7 +1152,7 @@ void MainWindow::handleScreenShow() {
     // 2. Вкладка "ASCII Mode" (Дамп памяти)
     screenAsciiModeWidget = new QPlainTextEdit(displayScreenDialog);
     screenAsciiModeWidget->setReadOnly(true);
-    screenAsciiModeWidget->setFont(QFont("Monospace", 10));
+    screenAsciiModeWidget->setFont(QFont("Monospace", MONO_FONT_SIZE));
     screenAsciiModeWidget->setStyleSheet(themeCssScreenTab);
     tabWidget->addTab(screenAsciiModeWidget, getLocalizedText("ASCII режим", "ASCII Mode"));
 
@@ -1163,7 +1169,7 @@ void MainWindow::handleScreenShow() {
     // 3. Вкладка "Printer" (Устройство печати)
     printerModeWidget = new QPlainTextEdit(displayScreenDialog);
     printerModeWidget->setReadOnly(true);
-    printerModeWidget->setFont(QFont("Monospace", 10));
+    printerModeWidget->setFont(QFont("Monospace", MONO_FONT_SIZE));
     printerModeWidget->setStyleSheet(themeCssScreenTab);
     printerModeWidget->setPlainText(printerTextBuffer);
     tabWidget->addTab(printerModeWidget, getLocalizedText("Принтер", "Printer"));
@@ -1312,8 +1318,17 @@ void MainWindow::handleReference() {
     // Получаем путь к директории, откуда запущен сам эмулятор (обычно это папка build)
     QString appDirPath = QCoreApplication::applicationDirPath();
 
-    // Формируем полный путь к файлу справки с учетом локали системы
+    // Формируем полный путь к файлу справки с учетом специфики структуры macOS App Bundle
+#ifdef Q_OS_MAC
+    // 1. Ищем внутри ресурсов бандла приложения (.app)
+    QString pdfFilePath = appDirPath + "/../Resources/" + getReferenceFileName();
+    if (!QFile::exists(pdfFilePath)) {
+        // 2. Фолбэк: если бандл запущен портативно, ищем файлы рядом с ним (например, в корне DMG)
+        pdfFilePath = QDir(appDirPath + "/../../../").absoluteFilePath(getReferenceFileName());
+    }
+#else
     QString pdfFilePath = appDirPath + QDir::separator() + getReferenceFileName();
+#endif
 
     // Проверяем, существует ли файл физически на диске
     if (!QFile::exists(pdfFilePath)) {

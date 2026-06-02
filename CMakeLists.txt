@@ -56,7 +56,9 @@ if(WIN32)
         set(LIB_PATH "/usr/x86_64-w64-mingw32/lib")
     # --- Настройки для Windows из-под Windows ---
     else()
-        set(LIB_PATH "C:/msys64/mingw64/lib")
+        if(EXISTS "C:/msys64")
+            set(LIB_PATH "C:/msys64/mingw64/lib")
+        endif()
     endif()
     
     # Принудительно только статические библиотеки
@@ -91,7 +93,7 @@ if(WIN32)
         set_target_properties(WrapZSTD PROPERTIES INTERFACE_LINK_LIBRARIES "${ZSTD_STATIC}")
     endif()
 else()
-    # --- Настройки для Linux ---
+    # --- Настройки для Linux и macOS ---
     find_package(Qt6 REQUIRED COMPONENTS Widgets)
 endif()
 
@@ -127,9 +129,43 @@ if(WIN32)
     # Финализация (обязательна для Qt6 на Windows)
     qt_finalize_executable(${EXE_NAME})
 else()
-    # --- Настройки для Linux ---
-    # Обычная сборка для Linux
-    add_executable(${EXE_NAME} ${SOURCES})
+    if(APPLE)
+        # --- Настройки для macOS ---
+        # На macOS собираем как Bundle для генерации .app директории
+        set(MACOSX_ICON assets/icon.icns)
+        set(MACOSX_LOCALES
+            assets/locales/ru.lproj/InfoPlist.strings
+            assets/locales/en.lproj/InfoPlist.strings
+        )
+        set(MACOSX_DOCS
+            Docs/PDP11.pdf
+            "Docs/PDP11 RU.pdf"
+        )
+        # Размечаем ресурсы внутри бандла .app
+        set_source_files_properties(${MACOSX_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+        set_source_files_properties(assets/locales/ru.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/ru.lproj")
+        set_source_files_properties(assets/locales/en.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/en.lproj")
+        set_source_files_properties(Docs/PDP11.pdf PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+        set_source_files_properties("Docs/PDP11 RU.pdf" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+
+        add_executable(${EXE_NAME} MACOSX_BUNDLE ${SOURCES} ${MACOSX_ICON} ${MACOSX_LOCALES} ${MACOSX_DOCS})
+
+        # Задаем метаданные бандла и подключаем кастомный Info.plist.in
+        set_target_properties(${EXE_NAME} PROPERTIES
+            MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/assets/Info.plist.in
+            MACOSX_BUNDLE_ICON_FILE icon.icns
+            MACOSX_BUNDLE_BUNDLE_NAME "Command System Emulator PDP-11"
+            MACOSX_BUNDLE_GUI_IDENTIFIER "com.arta48.pdp11"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0.0"
+            MACOSX_BUNDLE_BUNDLE_VERSION "1.0.0"
+            MACOSX_BUNDLE_COPYRIGHT "Copyright © 2026 Arta48"
+            OUTPUT_NAME "Command System Emulator PDP-11" # Задает правильное имя папки .app
+        )
+    else()
+        # --- Настройки для Linux ---
+        # Обычная сборка для Linux
+        add_executable(${EXE_NAME} ${SOURCES})
+    endif()
 
     target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets)
 endif()

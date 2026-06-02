@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QApplication>
 #include <QTableWidget>
 #include <QLineEdit>
 #include <QLabel>
@@ -60,7 +61,7 @@ protected:
     }
 };
 
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MAC)
 class Win10StyleProxy : public QProxyStyle {
 public:
     Win10StyleProxy(QStyle *style = nullptr) : QProxyStyle(style) {}
@@ -205,6 +206,15 @@ private slots:
     void handleScreenRemove();
 
 private:
+    // Оптимальный размер моноширинного шрифта под каждую ОС
+#if defined(Q_OS_WIN)
+    static constexpr int MONO_FONT_SIZE = 9;
+#elif defined(Q_OS_MAC)
+    static constexpr int MONO_FONT_SIZE = 12;
+#else
+    static constexpr int MONO_FONT_SIZE = 10;
+#endif
+
     // ==========================================
     // ВНУТРЕННЕЕ СОСТОЯНИЕ
     // ==========================================
