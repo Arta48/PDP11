@@ -23,7 +23,12 @@ if(WIN32)
         set(CMAKE_FIND_ROOT_PATH "${STATIC_BASE};/usr/x86_64-w64-mingw32")
     # --- Настройки для Windows из-под Windows ---
     else()
-        if(EXISTS "C:/msys64")
+        if(DEFINED ENV{MINGW_PREFIX})
+            # Динамически считываем путь MSYS2 (работает и на GitHub Actions, и локально)
+            set(STATIC_BASE "$ENV{MINGW_PREFIX}/qt6-static" CACHE PATH "Path to static base")
+            # Сначала ищем в статической Qt, потом в обычном mingw
+            set(CMAKE_FIND_ROOT_PATH "${STATIC_BASE};$ENV{MINGW_PREFIX}")
+        elseif(EXISTS "C:/msys64")
             # Используем CACHE PATH, чтобы это можно было переопределить из консоли при желании
             set(STATIC_BASE "C:/msys64/mingw64/qt6-static" CACHE PATH "Path to static base")
 
@@ -56,7 +61,9 @@ if(WIN32)
         set(LIB_PATH "/usr/x86_64-w64-mingw32/lib")
     # --- Настройки для Windows из-под Windows ---
     else()
-        if(EXISTS "C:/msys64")
+        if(DEFINED ENV{MINGW_PREFIX})
+            set(LIB_PATH "$ENV{MINGW_PREFIX}/lib")
+        elseif(EXISTS "C:/msys64")
             set(LIB_PATH "C:/msys64/mingw64/lib")
         endif()
     endif()
