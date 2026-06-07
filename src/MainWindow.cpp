@@ -55,6 +55,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     applyTheme(false);
 
     // 2. НАСТРОЙКА ОБРАТНЫХ ВЫЗОВОВ (CALLBACKS)
+    // Обработчик для ошибок ядра
+    processor.errorCallback = [this](const QString& errorMessage) {
+        // Если программа выполнялась автоматически, останавливаем таймер выполнения
+        if (isProgramRunning) {
+            handleProgramExecution();
+        }
+
+        // Выводим критическое системное окно поверх всех окон
+        QMessageBox::critical(this, getLocalizedText("Ошибка", "Error"), errorMessage);
+    };
+
     // Обработчик для экрана дисплея (порт 177566)
     processor.charOutputCallback = [this](uint8_t charCode) {
         QChar character(static_cast<char>(charCode));

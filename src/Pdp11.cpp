@@ -27,21 +27,44 @@ void Pdp11::resetProcessor() {
 // ==========================================
 
 void Pdp11::pushToStack(uint16_t value) {
+    uint16_t oldSP = registers[6];
     registers[6] -= 2; // Автодекремент SP (R6)
     writeValue(registers[6], value, false);
+
+    // Если во время записи в стек произошла аппаратная ошибка (isProcessorHalted стал true),
+    // откатываем SP назад в исходное состояние
+    if (isProcessorHalted) {
+        registers[6] = oldSP;
+    }
 }
 
 uint16_t Pdp11::popFromStack() {
     uint16_t value = readValue(registers[6], false);
+
+    // Если чтение из стека вызвало ошибку шины, НЕ инкрементируем SP и выходим
+    if (isProcessorHalted) {
+        return 0;
+    }
+
     registers[6] += 2; // Автоинкремент SP (R6)
     return value;
 }
 
 void Pdp11::handleInterrupt(uint16_t vectorAddress) {
+    // Тихо останавливаем ЦП при Double Fault, так как вызов окна уже произошел в writeValue/readValue
+    if (registers[6] >= 0160000 || registers[6] < 2) {
+        isProcessorHalted = true;
+        return;
+    }
+
     pushToStack(processorStatusWord); // Сохраняем текущий PSW (RS)
+    if (isProcessorHalted) return;
+
     pushToStack(registers[7]); // Сохраняем текущий PC (R7)
+    if (isProcessorHalted) return;
 
     registers[7] = readValue(vectorAddress, false); // Загружаем новый PC
+    if (isProcessorHalted) return;
 
     // ВАЖНО: Защищаем PSW от загрузки не поддерживаемых битов приоритета и трассировки
     processorStatusWord = readValue(vectorAddress + 2, false) & 0x000F;
@@ -94,6 +117,16 @@ uint16_t Pdp11::readValue(uint16_t address, bool isByteOperation) {
     }
     if (targetAddress == 0177574) {
         return isByteOperation ? (displayColor & 0xFF) : displayColor;
+    }
+
+    // Защита от обращения к несуществующему устройству на шине / невалидному MMIO (Bus Error)
+    if (targetAddress >= 0160000) {
+        if (errorCallback) {
+            errorCallback(getLocalizedText("Ошибка в команде", "Error in command"));
+        }
+        handleInterrupt(000004); // Вектор прерывания 4 (Bus Error)
+        isProcessorHalted = true;
+        return 0;
     }
 
     // --- Оперативная память ---
@@ -157,6 +190,16 @@ void Pdp11::writeValue(uint16_t address, uint16_t value, bool isByteOperation) {
                                 static_cast<uint8_t>(displayY),
                                 static_cast<uint8_t>(displayColor));
         }
+        return;
+    }
+
+    // Защита от нелегальной записи в область MMIO / невалидный адрес шины (Bus Error)
+    if (targetAddress >= 0160000) {
+        if (errorCallback) {
+            errorCallback(getLocalizedText("Ошибка в команде", "Error in command"));
+        }
+        handleInterrupt(000004); // Вектор прерывания 4 (Bus Error)
+        isProcessorHalted = true;
         return;
     }
 
@@ -310,6 +353,7 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
             return;
         }
         uint16_t destinationAddress = getEffectiveAddress(destinationMode, instruction & 07, false);
+        if (isProcessorHalted) return; // <-- Аборт при ошибке адресации
         registers[7] = destinationAddress;
         return;
     }
@@ -321,15 +365,19 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         }
         uint8_t registerIndex = (instruction >> 6) & 07;
         uint16_t destinationAddress = getEffectiveAddress(destinationMode, instruction & 07, false);
+        if (isProcessorHalted) return; // <-- Аборт при ошибке адресации
         pushToStack(registers[registerIndex]);
+        if (isProcessorHalted) return; // <-- КРИТИЧЕСКИЙ АБОРТ: если стек сломался, выходим без изменения PC и регистров!
         registers[registerIndex] = registers[7];
         registers[7] = destinationAddress;
         return;
     }
     if ((instruction & 0177770) == 0000200) { // RTS
         uint8_t registerIndex = instruction & 07;
+        uint16_t poppedValue = popFromStack();
+        if (isProcessorHalted) return; // <-- Аборт при чтении из невалидного стека
         registers[7] = registers[registerIndex];
-        registers[registerIndex] = popFromStack();
+        registers[registerIndex] = poppedValue;
         return;
     }
 
@@ -354,9 +402,14 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
     }
 
     if (instruction == 000002 || instruction == 000006) { // RTI / RTT
-        registers[7] = popFromStack();
+        uint16_t newPC = popFromStack();
+        if (isProcessorHalted) return; // <-- Аборт
+        uint16_t newPSW = popFromStack();
+        if (isProcessorHalted) return; // <-- Аборт
+
+        registers[7] = newPC;
         // ВАЖНО: Аппаратно отсекаем мусор, оставляем только флаги NZVC (биты 0-3)
-        processorStatusWord = popFromStack() & 0x000F;
+        processorStatusWord = newPSW & 0x000F;
         return;
     }
 
@@ -376,6 +429,7 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         uint8_t destinationRegisterIndex = instruction & 07;
 
         uint16_t sourceValue = (sourceMode == 0) ? registers[sourceRegisterIndex] : readValue(getEffectiveAddress(sourceMode, sourceRegisterIndex, isByteOperation), isByteOperation);
+        if (isProcessorHalted) return; // <-- Аборт при ошибке чтения источника
 
         // ВАЖНО: Если источник — регистр и операция байтовая, берем только младший байт (отсекаем мусор)
         if (isByteOperation && sourceMode == 0) {
@@ -383,6 +437,7 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         }
 
         uint16_t destinationAddress = (destinationMode == 0) ? 0 : getEffectiveAddress(destinationMode, destinationRegisterIndex, isByteOperation);
+        if (isProcessorHalted) return; // <-- Аборт при ошибке вычисления адреса приемника
 
         uint16_t destinationValue = 0;
         // ВАЖНО: Команды MOV и MOVB не должны читать значение приемника (чтобы избежать побочных эффектов I/O)
@@ -480,6 +535,7 @@ void Pdp11::decodeAndExecute(uint16_t instruction) {
         uint8_t destinationRegisterIndex = instruction & 07;
 
         uint16_t destinationAddress = (destinationMode == 0) ? 0 : getEffectiveAddress(destinationMode, destinationRegisterIndex, isByteOperation);
+        if (isProcessorHalted) return; // <-- Аборт при ошибке вычисления адреса приемника
         uint16_t currentValue = (destinationMode == 0) ? registers[destinationRegisterIndex] : readValue(destinationAddress, isByteOperation);
         if (isByteOperation && destinationMode == 0) currentValue &= 0xFF;
 

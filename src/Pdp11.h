@@ -110,6 +110,11 @@ public:
      */
     std::function<void(uint8_t, uint8_t, uint8_t)> pixelOutputCallback;
 
+    /**
+     * @brief Коллбэк для вывода критических аппаратных ошибок шины/стека в UI.
+     */
+    std::function<void(const QString&)> errorCallback;
+
 private:
     // ==========================================
     // ВНУТРЕННЯЯ ЛОГИКА ИСПОЛНЕНИЯ
