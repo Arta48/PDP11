@@ -352,25 +352,24 @@ private:
 
 #ifdef ENABLE_STUDENT_SECURITY
     QString currentStudentId; // Хранит верифицированный ID студента в сессии
+    bool isTeacherSession = false; // Статус роли (студент или преподаватель)
 
     /**
      * @brief Генерирует уникальный аппаратный отпечаток ПК.
      */
     QString getMachineFingerprint() const {
         // Смешиваем имя хоста, тип процессора и имя пользователя ОС
-        QString rawId = QSysInfo::machineUniqueId() +
-        QSysInfo::prettyProductName() +
-        qgetenv("USER").mid(0, 10) +
-                        qgetenv("USERNAME").mid(0, 10);
+        QString rawId = QSysInfo::machineUniqueId() + QSysInfo::prettyProductName() + qgetenv("USER").mid(0, 10) + qgetenv("USERNAME").mid(0, 10);
 
         return QCryptographicHash::hash(rawId.toUtf8(), QCryptographicHash::Sha256).toHex();
     }
 
     /**
-     * @brief Вычисляет локальный проверочный токен на основе студбилета и отпечатка ПК.
+     * @brief Вычисляет локальный проверочный токен.
+     * Параметр isTeacher добавлен в расчет хэша, чтобы студент не мог подделать роль в конфигах.
      */
-    QString computeLocalToken(const QString& studentId) const {
-        QString input = studentId + getMachineFingerprint() + "VsuPdp11Salt2026";
+    QString computeLocalToken(const QString& studentId, bool isTeacher) const {
+        QString input = studentId + (isTeacher ? "teacher" : "student") + getMachineFingerprint() + "VsuPdp11Salt2026";
         return QCryptographicHash::hash(input.toUtf8(), QCryptographicHash::Sha256).toHex();
     }
 
