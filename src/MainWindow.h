@@ -24,6 +24,7 @@
 // Раскомментируйте строку ниже, чтобы включить защиту по студенческому билету
 #define ENABLE_STUDENT_SECURITY
 
+#include <QMessageAuthenticationCode>
 #ifdef ENABLE_STUDENT_SECURITY
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -33,7 +34,6 @@
 #include <QUrlQuery>
 #include <QNetworkCookieJar>
 #include <QNetworkCookie>
-#include <QMessageAuthenticationCode>
 
 // Перечисление для детальной классификации ошибок
 enum class AuthStatus {
@@ -389,12 +389,11 @@ private:
      * @brief Синхронная проверка логина/пароля на сервере Moodle edu.vsu.ru.
      */
     AuthStatus authenticateViaMoodle(const QString& username, const QString& password);
-
+#endif
     /**
      * @brief Вычисляет HMAC-SHA256 подпись для защиты структуры файла от подмены.
      */
     QByteArray calculateFileSignature(const QByteArray& fileData, const QString& studentId) const;
-#endif
 };
 
 #endif // MAINWINDOW_H
