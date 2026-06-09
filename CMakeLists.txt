@@ -54,7 +54,7 @@ endif()
 # --- Поиск зависимостей ---
 if(WIN32)
     # --- Настройки для Windows ---
-    find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Network)
 
     # --- Настройки для Windows из-под Linux ---
     if(CMAKE_CROSSCOMPILING)
@@ -101,7 +101,7 @@ if(WIN32)
     endif()
 else()
     # --- Настройки для Linux и macOS ---
-    find_package(Qt6 REQUIRED COMPONENTS Widgets)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 endif()
 
 # --- Исходные файлы ---
@@ -125,7 +125,7 @@ if(WIN32)
     )
 
     # Линковка (порядок важен для статических библиотек!)
-    target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets Qt6::Gui Qt6::Core)
+    target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets Qt6::Gui Qt6::Core Qt6::Network)
     
     # --- Настройки для Windows из-под Windows ---
     if (NOT CMAKE_CROSSCOMPILING)
@@ -174,7 +174,7 @@ else()
         add_executable(${EXE_NAME} ${SOURCES})
     endif()
 
-    target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets)
+    target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets Qt6::Network)
 endif()
 
 # --- Копирование справки ---

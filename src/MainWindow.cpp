@@ -107,6 +107,33 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setupUserInterface();
     processor.resetProcessor();
     updateUserInterface();
+
+#ifdef ENABLE_STUDENT_SECURITY
+    QSettings settings("PDP11", "PDP11");
+
+    // Сценарий 1: Конфиг существует
+    if (settings.contains("student_id") && settings.contains("security_token")) {
+        if (validateLocalToken()) {
+            currentStudentId = settings.value("student_id").toString();
+        } else {
+            // Сценарий 2: Конфиг скопирован (хэш не совпал) -> Выводим предупреждение
+            QMessageBox::warning(
+                this,
+                getLocalizedText("Внимание", "Warning"),
+                getLocalizedText("Обнаружен перенос конфигурации или запуск на другом компьютере.\n\nДля подтверждения личности и продолжения работы необходимо заново авторизоваться под своей учетной записью Moodle (edu.vsu.ru).","Configuration transfer or execution on another computer detected.\n\nTo verify your identity and continue, please log in again with your Moodle account (edu.vsu.ru).")
+            );
+
+            if (!showLoginDialog()) {
+                QMetaObject::invokeMethod(this, "close", Qt::QueuedConnection);
+            }
+        }
+    } else {
+        // Сценарий 3: Первый запуск (конфига нет)
+        if (!showLoginDialog()) {
+            QMetaObject::invokeMethod(this, "close", Qt::QueuedConnection);
+        }
+    }
+#endif
 }
 
 // ==========================================
@@ -733,6 +760,77 @@ void MainWindow::handleOpenFile() {
     // Перед загрузкой новых данных сбрасываем состояние процессора
     processor.resetProcessor();
 
+#ifdef ENABLE_STUDENT_SECURITY
+    uint32_t magic = 0;
+    in >> magic;
+
+    if (magic == 0x53445031) { // "SDP1"
+        QString fileOwnerId;
+        QByteArray fileSignature;
+        in >> fileOwnerId;
+        in >> fileSignature;
+
+        // Изменено: Читаем полезную нагрузку через QDataStream из кэша потока
+        QByteArray payload;
+        in >> payload;
+
+        // Проверяем криптографическую подпись структуры данных
+        QByteArray expectedSignature = calculateFileSignature(payload, fileOwnerId);
+        if (fileSignature != expectedSignature) {
+            QMessageBox::critical(this, getLocalizedText("Ошибка", "Error"),
+                                  getLocalizedText("Целостность файла нарушена или файл поврежден.", "File integrity check failed."));
+            dataFile.close();
+            return;
+        }
+
+        // Защита от списывания: Владелец файла должен совпадать с текущим студентом
+        if (fileOwnerId != currentStudentId) {
+            QMessageBox::critical(this, getLocalizedText("Доступ запрещен", "Access Denied"),
+                                  getLocalizedText(QString("Этот файл принадлежит другому студенту (%1).\nВыполнять чужие работы запрещено.").arg(fileOwnerId),
+                                                   QString("This file belongs to another student (%1).\nUsing someone else's work is prohibited.").arg(fileOwnerId)));
+            dataFile.close();
+            return;
+        }
+
+        // Настраиваем поток для десериализации проверенной полезной нагрузки
+        QDataStream payloadStream(&payload, QIODevice::ReadOnly);
+        payloadStream.setByteOrder(QDataStream::LittleEndian);
+
+        // Читаем регистры
+        for (int i = 0; i < 8; ++i) {
+            if (payloadStream.atEnd()) break;
+            uint16_t registerValue;
+            payloadStream >> registerValue;
+            processor.registers[i] = registerValue;
+        }
+
+        // Читаем PSW
+        if (!payloadStream.atEnd()) {
+            uint16_t processorStatusValue;
+            payloadStream >> processorStatusValue;
+            processor.processorStatusWord = processorStatusValue;
+        }
+
+        // Читаем память
+        while (!payloadStream.atEnd()) {
+            uint16_t wordIndex = 0;
+            uint16_t dataValue = 0;
+            payloadStream >> wordIndex;
+            if (payloadStream.atEnd()) break;
+            payloadStream >> dataValue;
+            if (wordIndex < 32768) {
+                processor.memory[wordIndex] = dataValue;
+            }
+        }
+    } else {
+        // Если макрос безопасности активен, загрузка незащищенных файлов запрещается
+        QMessageBox::critical(this, getLocalizedText("Доступ запрещен", "Access Denied"),
+                              getLocalizedText("В системе включена защита файлов. Загрузка незащищенных или поврежденных файлов .pdp запрещена.",
+                                               "Security mode is enabled. Loading unprotected or corrupted .pdp files is prohibited."));
+        dataFile.close();
+        return;
+    }
+#else
     // 1. Читаем регистры процессора из файла
     for (int i = 0; i < 8; ++i) {
         if (in.atEnd()) {
@@ -765,6 +863,7 @@ void MainWindow::handleOpenFile() {
             processor.memory[wordIndex] = dataValue;
         }
     }
+#endif
 
     dataFile.close();
 
@@ -801,6 +900,32 @@ void MainWindow::handleSaveFile() {
     QDataStream out(&dataFile);
     out.setByteOrder(QDataStream::LittleEndian);
 
+#ifdef ENABLE_STUDENT_SECURITY
+    // 1. Записываем сигнатуру защищенного файла и ID текущего студента
+    out << (uint32_t)0x53445031; // "SDP1"
+    out << currentStudentId;
+
+    // 2. Сериализуем полезную нагрузку во временный буфер для расчета подписи
+    QByteArray payload;
+    QDataStream payloadStream(&payload, QIODevice::WriteOnly);
+    payloadStream.setByteOrder(QDataStream::LittleEndian);
+
+    for (int i = 0; i < 8; ++i) {
+        payloadStream << (uint16_t)processor.registers[i];
+    }
+    payloadStream << (uint16_t)processor.processorStatusWord;
+    for (uint16_t index = 0; index < 32768; ++index) {
+        if (processor.memory[index] != 0) {
+            payloadStream << index;
+            payloadStream << (uint16_t)processor.memory[index];
+        }
+    }
+
+    // 3. Вычисляем подпись и записываем сигнатуру и payload строго через QDataStream
+    QByteArray fileSignature = calculateFileSignature(payload, currentStudentId);
+    out << fileSignature;
+    out << payload; // Изменено: записываем массив через поток, чтобы Qt управлял длинами сам
+#else
     // 1. Записываем регистры
     for (int i = 0; i < 8; ++i) {
         out << (uint16_t)processor.registers[i];
@@ -816,6 +941,7 @@ void MainWindow::handleSaveFile() {
             out << (uint16_t)processor.memory[index];
         }
     }
+#endif
 
     dataFile.close();
     QMessageBox::information(this, getLocalizedText("Сохранение файла", "File Save"), selectedFileName);
@@ -1361,3 +1487,218 @@ void MainWindow::handleReference() {
 void MainWindow::handleAbout() {
     QMessageBox::about(this, getLocalizedText("О программе", "About"), getLocalizedText("Версия 1.0\nФакультет компьютерных наук\nCopyright © 2026", "Version 1.0\nDepartment of Computer Science\nCopyright © 2026"));
 }
+
+#ifdef ENABLE_STUDENT_SECURITY
+
+bool MainWindow::validateLocalToken() {
+    QSettings settings("PDP11", "PDP11");
+    QString savedId = settings.value("student_id").toString();
+    QString savedToken = settings.value("security_token").toString();
+
+    return (savedToken == computeLocalToken(savedId));
+}
+
+bool MainWindow::showLoginDialog() {
+    bool ok;
+    QString username = QInputDialog::getText(
+        this,
+        getLocalizedText("Авторизация ВГУ Moodle", "VSU Moodle Login"),
+        getLocalizedText("Введите номер студенческого билета (логин edu.vsu.ru):", "Enter student card number (edu.vsu.ru login):"),
+        QLineEdit::Normal,
+        "",
+        &ok
+    );
+
+    if (!ok || username.trimmed().isEmpty()) return false;
+
+    QString password = QInputDialog::getText(this,
+        getLocalizedText("Авторизация VSU Moodle", "VSU Moodle Login"),
+        getLocalizedText("Введите пароль от личного кабинета:", "Enter portal password:"),
+        QLineEdit::Password, "", &ok);
+
+    if (!ok) return false;
+
+    setEnabled(false);
+    AuthStatus status = authenticateViaMoodle(username.trimmed(), password);
+    setEnabled(true);
+
+    if (status == AuthStatus::Success) {
+        currentStudentId = username.trimmed();
+
+        QSettings settings("PDP11", "PDP11");
+        settings.setValue("student_id", currentStudentId);
+        settings.setValue("security_token", computeLocalToken(currentStudentId));
+
+        QMessageBox::information(
+            this,
+            getLocalizedText("Успешно", "Success"),
+            getLocalizedText("Авторизация пройдена успешно.", "Authorization completed successfully.")
+        );
+        return true;
+    }
+    else if (status == AuthStatus::NetworkError) {
+        QMessageBox::critical(
+            this,
+            getLocalizedText("Ошибка сети", "Network Error"),
+            getLocalizedText("Отсутствует интернет-соединение или сервер edu.vsu.ru недоступен.\nПожалуйста, проверьте подключение к сети.", "No internet connection or edu.vsu.ru is down.\nPlease check your network connection.")
+        );
+        return false;
+    }
+    else if (status == AuthStatus::SslError) {
+        QMessageBox::critical(
+            this,
+            getLocalizedText("Ошибка SSL / Безопасности", "SSL / Security Error"),
+            getLocalizedText("Ошибка безопасного соединения (SSL Handshake).\nУбедитесь, что на компьютере установлены библиотеки OpenSSL (они необходимы Qt для работы с HTTPS).", "Secure connection error (SSL Handshake).\nMake sure OpenSSL libraries are installed on your computer (they are required by Qt for HTTPS).")
+        );
+        return false;
+    }
+    else if (status == AuthStatus::TokenError) {
+        QMessageBox::critical(
+            this,
+            getLocalizedText("Ошибка структуры сайта", "Site Error"),
+            getLocalizedText("Не удалось получить токен сессии с сайта Moodle.\nВозможно, на сервере ведутся технические работы.", "Could not extract session token from Moodle.\nTechnical maintenance might be in progress on the server.")
+        );
+        return false;
+    }
+    else if (status == AuthStatus::LockedAccount) {
+        QMessageBox::critical(
+            this,
+            getLocalizedText("Учетная запись заблокирована", "Account Locked"),
+            getLocalizedText("Ваша учетная запись на портале Moodle временно заблокирована из-за частых попыток входа.\n\nПожалуйста, проверьте свою университетскую почту (vsu.ru) — туда было отправлено письмо со ссылкой для разблокировки аккаунта.", "Your Moodle account has been temporarily locked due to multiple login attempts.\n\nPlease check your university student email (vsu.ru) for an unlock link.")
+        );
+        return false;
+    }
+    else { // AuthStatus::InvalidCredentials
+        QMessageBox::critical(
+            this,
+            getLocalizedText("Ошибка авторизации", "Authentication Error"),
+            getLocalizedText("Неверный номер студенческого билета или пароль.", "Invalid student card number or password.")
+        );
+        return false;
+    }
+}
+
+AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QString& password) {
+    QNetworkAccessManager manager;
+    manager.setCookieJar(new QNetworkCookieJar(&manager));
+
+    QString userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+    // Шаг 1: GET-запрос страницы входа для получения токена и кук сессии
+    QUrl loginUrl("https://edu.vsu.ru/login/index.php");
+    QNetworkRequest getRequest(loginUrl);
+    getRequest.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
+    getRequest.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+    getRequest.setRawHeader("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7");
+
+    QNetworkReply* getReply = manager.get(getRequest);
+    QEventLoop loop;
+    connect(getReply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec();
+
+    QNetworkReply::NetworkError getError = getReply->error();
+    if (getError != QNetworkReply::NoError) {
+        getReply->deleteLater();
+        if (getError == QNetworkReply::SslHandshakeFailedError) {
+            return AuthStatus::SslError;
+        }
+        return AuthStatus::NetworkError;
+    }
+
+    QString html = QString::fromUtf8(getReply->readAll());
+    getReply->deleteLater();
+
+    // Автоматический сбор скрытых полей формы
+    QUrlQuery postData;
+    QRegularExpression hiddenInputRegex("<input type=\"hidden\" name=\"([^\"]+)\" value=\"([^\"]*)\"");
+    QRegularExpressionMatchIterator it = hiddenInputRegex.globalMatch(html);
+    while (it.hasNext()) {
+        QRegularExpressionMatch match = it.next();
+        postData.addQueryItem(match.captured(1), match.captured(2));
+    }
+
+    QString loginToken = postData.queryItemValue("logintoken");
+    if (loginToken.isEmpty()) {
+        return AuthStatus::TokenError;
+    }
+
+    // Шаг 2: Подготовка POST-запроса
+    postData.addQueryItem("username", username);
+    postData.addQueryItem("password", password);
+
+    if (!postData.hasQueryItem("anchor")) {
+        postData.addQueryItem("anchor", "");
+    }
+
+    QNetworkRequest postRequest(loginUrl);
+    postRequest.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
+    postRequest.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+    postRequest.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+    postRequest.setRawHeader("Referer", "https://edu.vsu.ru/login/index.php");
+    postRequest.setRawHeader("Origin", "https://edu.vsu.ru");
+
+    // Кодируем все параметры по стандарту x-www-form-urlencoded вручную
+    QByteArray postBody;
+    auto queryItems = postData.queryItems();
+    for (int i = 0; i < queryItems.size(); ++i) {
+        if (i > 0) {
+            postBody.append('&');
+        }
+        postBody.append(QUrl::toPercentEncoding(queryItems[i].first));
+        postBody.append('=');
+        postBody.append(QUrl::toPercentEncoding(queryItems[i].second));
+    }
+
+    QNetworkReply* postReply = manager.post(postRequest, postBody);
+    connect(postReply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec();
+
+    QNetworkReply::NetworkError postError = postReply->error();
+    if (postError != QNetworkReply::NoError) {
+        postReply->deleteLater();
+        if (postError == QNetworkReply::SslHandshakeFailedError) {
+            return AuthStatus::SslError;
+        }
+        return AuthStatus::NetworkError;
+    }
+
+    QUrl redirectUrl = postReply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
+    QUrl finalUrl = postReply->url();
+    QString bodyStr = QString::fromUtf8(postReply->readAll());
+    postReply->deleteLater();
+
+    bool isSuccess = false;
+
+    // Определение успешности перенаправления на домашнюю страницу
+    if (!redirectUrl.isEmpty()) {
+        QString redirectStr = redirectUrl.toString();
+        if (!redirectStr.contains("login/index.php") && !redirectStr.contains("error")) {
+            isSuccess = true;
+        }
+    } else {
+        QString finalStr = finalUrl.toString();
+        if (!finalStr.contains("login/index.php")) {
+            isSuccess = true;
+        }
+    }
+
+    // Проверка блокировки аккаунта
+    if (bodyStr.contains("заблокирована") || bodyStr.contains("разблокировки") ||
+        bodyStr.contains("locked") || bodyStr.contains("unlock")) {
+        return AuthStatus::LockedAccount;
+    }
+
+    // Проверка наличия ошибки неверных учетных данных
+    if (bodyStr.contains("loginerror") || bodyStr.contains("Неверный логин") || bodyStr.contains("Invalid login")) {
+        isSuccess = false;
+    }
+
+    return isSuccess ? AuthStatus::Success : AuthStatus::InvalidCredentials;
+}
+
+QByteArray MainWindow::calculateFileSignature(const QByteArray& fileData, const QString& studentId) const {
+    QByteArray key = (studentId + "VsuKeySalt").toUtf8();
+    return QMessageAuthenticationCode::hash(fileData, key, QCryptographicHash::Sha256);
+}
+
+#endif
