@@ -21,6 +21,31 @@
 #include <array>
 #include "Pdp11.h"
 
+// Раскомментируйте строку ниже, чтобы включить защиту по студенческому билету
+#define ENABLE_STUDENT_SECURITY
+
+#ifdef ENABLE_STUDENT_SECURITY
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QCryptographicHash>
+#include <QSysInfo>
+#include <QInputDialog>
+#include <QUrlQuery>
+#include <QNetworkCookieJar>
+#include <QNetworkCookie>
+#include <QMessageAuthenticationCode>
+
+// Перечисление для детальной классификации ошибок
+enum class AuthStatus {
+    Success,
+    NetworkError,
+    SslError,
+    TokenError,
+    InvalidCredentials,
+    LockedAccount
+};
+#endif
+
 /**
  * @brief Делегат для ограничения ввода в ячейках таблицы.
  * Позволяет вводить только восьмеричные числа (0-7) длиной не более 6 символов.
@@ -324,6 +349,52 @@ private:
      * @brief Обновление масштабированного изображения на экране.
      */
     void updateGraphicsScreenView();
+
+#ifdef ENABLE_STUDENT_SECURITY
+    QString currentStudentId; // Хранит верифицированный ID студента в сессии
+
+    /**
+     * @brief Генерирует уникальный аппаратный отпечаток ПК.
+     */
+    QString getMachineFingerprint() const {
+        // Смешиваем имя хоста, тип процессора и имя пользователя ОС
+        QString rawId = QSysInfo::machineUniqueId() +
+        QSysInfo::prettyProductName() +
+        qgetenv("USER").mid(0, 10) +
+                        qgetenv("USERNAME").mid(0, 10);
+
+        return QCryptographicHash::hash(rawId.toUtf8(), QCryptographicHash::Sha256).toHex();
+    }
+
+    /**
+     * @brief Вычисляет локальный проверочный токен на основе студбилета и отпечатка ПК.
+     */
+    QString computeLocalToken(const QString& studentId) const {
+        QString input = studentId + getMachineFingerprint() + "VsuPdp11Salt2026";
+        return QCryptographicHash::hash(input.toUtf8(), QCryptographicHash::Sha256).toHex();
+    }
+
+    /**
+     * @brief Проверяет валидность сохраненного токена.
+     * @return true, если токен совпадает с текущим ПК.
+     */
+    bool validateLocalToken();
+
+    /**
+     * @brief Отображает диалог входа и отправляет запрос на edu.vsu.ru.
+     */
+    bool showLoginDialog();
+
+    /**
+     * @brief Синхронная проверка логина/пароля на сервере Moodle edu.vsu.ru.
+     */
+    AuthStatus authenticateViaMoodle(const QString& username, const QString& password);
+
+    /**
+     * @brief Вычисляет HMAC-SHA256 подпись для защиты структуры файла от подмены.
+     */
+    QByteArray calculateFileSignature(const QByteArray& fileData, const QString& studentId) const;
+#endif
 };
 
 #endif // MAINWINDOW_H
