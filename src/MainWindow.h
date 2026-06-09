@@ -34,6 +34,7 @@
 #include <QUrlQuery>
 #include <QNetworkCookieJar>
 #include <QNetworkCookie>
+#include <QDialog>
 
 // Перечисление для детальной классификации ошибок
 enum class AuthStatus {
@@ -43,6 +44,26 @@ enum class AuthStatus {
     TokenError,
     InvalidCredentials,
     LockedAccount
+};
+
+// Объявление кастомного единого диалогового окна входа
+class LoginDialog : public QDialog {
+    Q_OBJECT
+public:
+    LoginDialog(QWidget *parent = nullptr);
+    QString getUsername() const {
+        return usernameField->text();
+    }
+
+    QString getPassword() const {
+        return passwordField->text();
+    }
+
+private:
+    QLineEdit *usernameField;
+    QLineEdit *passwordField;
+    QPushButton *loginButton;
+    QPushButton *cancelButton;
 };
 #endif
 
@@ -187,6 +208,14 @@ class MainWindow : public QMainWindow {
 
 public:
     MainWindow(QWidget *parent = nullptr);
+
+#ifdef ENABLE_STUDENT_SECURITY
+    // Ссылки на портал Moodle ВГУ
+    static inline const QString MOODLE_DOMAIN = "edu.vsu.ru"; // Базовый домен
+    static inline const QString MOODLE_BASE_URL = "https://" + MOODLE_DOMAIN; // Базовый URL
+    static inline const QString MOODLE_LOGIN_URL = MOODLE_BASE_URL + "/login/index.php"; // URL входа
+    static inline const QString MOODLE_PROFILE_URL = MOODLE_BASE_URL + "/user/profile.php"; // URL профиля
+#endif
 
 protected:
     /**
@@ -406,12 +435,6 @@ private:
 
     // Единый User-Agent для маскировки под браузер
     static inline const QString MOODLE_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
-    // Ссылки на портал Moodle ВГУ
-    static inline const QString MOODLE_DOMAIN = "edu.vsu.ru"; // Базовый домен
-    static inline const QString MOODLE_BASE_URL = "https://" + MOODLE_DOMAIN; // Базовый URL
-    static inline const QString MOODLE_LOGIN_URL = MOODLE_BASE_URL + "/login/index.php"; // URL входа
-    static inline const QString MOODLE_PROFILE_URL = MOODLE_BASE_URL + "/user/profile.php"; // URL профиля
 
     // Тестовый обход (Backdoor) для преподавателя в офлайн
     static inline const QString BACKDOOR_USER = "ivanov_i_i";
