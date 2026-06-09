@@ -115,6 +115,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     if (settings.contains("student_id") && settings.contains("security_token")) {
         if (validateLocalToken()) {
             currentStudentId = settings.value("student_id").toString();
+            isTeacherSession = settings.value("is_teacher", false).toBool(); // Восстанавливаем роль
         } else {
             // Сценарий 2: Конфиг скопирован (хэш не совпал) -> Выводим предупреждение
             QMessageBox::warning(
@@ -771,7 +772,7 @@ void MainWindow::handleOpenFile() {
 
 #ifdef ENABLE_STUDENT_SECURITY
     // =========================================================================
-    // КОД ПРИ ВКЛЮЧЕННОЙ ЗАЩИТЕ (СЦЕНАРИЙ СТУДЕНТА)
+    // КОД ПРИ ВКЛЮЧЕННОЙ ЗАЩИТЕ (СЦЕНАРИЙ СТУДЕНТА И ПРЕПОДАВАТЕЛЯ)
     // =========================================================================
     if (magic == 0x53445031) { // "SDP1" (Защищенный формат)
         uint32_t dummyMagic;
@@ -788,19 +789,38 @@ void MainWindow::handleOpenFile() {
         // Проверяем криптографическую подпись данных на целостность
         QByteArray expectedSignature = calculateFileSignature(payload, fileOwnerId);
         if (fileSignature != expectedSignature) {
-            QMessageBox::critical(this, getLocalizedText("Ошибка", "Error"),
-                                  getLocalizedText("Целостность файла нарушена или файл поврежден.", "File integrity check failed."));
+            QMessageBox::critical(
+                this,
+                getLocalizedText("Ошибка", "Error"),
+                getLocalizedText("Целостность файла нарушена или файл поврежден.", "File integrity check failed.")
+            );
             dataFile.close();
             return;
         }
 
-        // Защита от списывания: Владелец файла должен совпадать с текущим студентом
-        if (fileOwnerId != currentStudentId) {
-            QMessageBox::critical(this, getLocalizedText("Доступ запрещен", "Access Denied"),
-                                  getLocalizedText(QString("Этот файл принадлежит другому студенту (%1).\nВыполнять чужие работы запрещено.").arg(fileOwnerId),
-                                                   QString("This file belongs to another student (%1).\nUsing someone else's work is prohibited.").arg(fileOwnerId)));
+        // Защита от списывания: Владелец файла должен совпадать с текущим студентом.
+        // Исключение 1: Если залогинен преподаватель (!isTeacherSession), блокировка не срабатывает.
+        // Исключение 2: Если файл был создан преподавателем (fileOwnerId == "TEACHER"), студент имеет право его открыть!
+        if (!isTeacherSession && fileOwnerId != currentStudentId && fileOwnerId != "TEACHER") {
+            QMessageBox::critical(
+                this,
+                getLocalizedText("Доступ запрещен", "Access Denied"),
+                getLocalizedText("Этот файл принадлежит другому студенту (%1).\nВыполнять чужие работы запрещено.", "This file belongs to another student (%1).\nUsing someone else's work is prohibited.").arg(fileOwnerId)
+            );
             dataFile.close();
             return;
+        }
+
+        // Если залогинен преподаватель, выводим информацию об авторе
+        if (isTeacherSession) {
+            // Форматируем имя автора в зависимости от его роли
+            QString authorText = (fileOwnerId == "TEACHER") ? getLocalizedText("Преподаватель", "Teacher") : getLocalizedText("Студент " + fileOwnerId, "Student " + fileOwnerId);
+
+            QMessageBox::information(
+                this,
+                getLocalizedText("Успешная верификация", "File Verified"),
+                getLocalizedText("Файл успешно открыт.\n\nАвтор работы: %1.\nЦелостность данных: подтверждена.", "File opened successfully.\n\nAuthor: %1.\nData integrity: confirmed.").arg(authorText)
+            );
         }
 
         // Десериализуем данные из подтвержденной полезной нагрузки
@@ -835,18 +855,47 @@ void MainWindow::handleOpenFile() {
         }
     }
     else { // Файл без защиты
-        // Если защита включена, импорт незащищенных файлов запрещен для исключения обхода
-        QMessageBox::critical(
-            this,
-            getLocalizedText("Доступ запрещен", "Access Denied"),
-            getLocalizedText("В системе включена защита файлов. Загрузка незащищенных или поврежденных файлов .pdp запрещена.", "Security mode is enabled. Loading unprotected or corrupted .pdp files is prohibited.")
-        );
-        dataFile.close();
-        return;
+        // Если залогинен обычный студент — загрузка незащищенных файлов строго запрещена
+        // Если залогинен преподаватель (isTeacherSession == true) — РАЗРЕШАЕМ загрузку легаси-файла!
+        if (!isTeacherSession) {
+            QMessageBox::critical(
+                this,
+                getLocalizedText("Доступ запрещен", "Access Denied"),
+                getLocalizedText("В системе включена защита файлов.\nЗагрузка незащищенных или поврежденных файлов .pdp запрещена.", "Security mode is enabled.\nLoading unprotected or corrupted .pdp files is prohibited.")
+            );
+            dataFile.close();
+            return;
+        }
+
+        // Читаем оригинальный легаси-файл без модификаций для преподавателя
+        for (int i = 0; i < 8; ++i) {
+            if (in.atEnd()) break;
+            uint16_t registerValue;
+            in >> registerValue;
+            processor.registers[i] = registerValue;
+        }
+
+        if (!in.atEnd()) {
+            uint16_t processorStatusValue;
+            in >> processorStatusValue;
+            processor.processorStatusWord = processorStatusValue;
+        }
+
+        while (!in.atEnd()) {
+            uint16_t wordIndex = 0;
+            uint16_t dataValue = 0;
+            in >> wordIndex;
+            if (in.atEnd()) break;
+            in >> dataValue;
+
+            if (wordIndex < 32768) {
+                processor.memory[wordIndex] = dataValue;
+            }
+        }
     }
 #else
     // =========================================================================
-    // КОД ПРИ ВЫКЛЮЧЕННОЙ ЗАЩИТЕ (РЕЖИМ СОВМЕСТИМОСТИ И ПРЕПОДАВАТЕЛЯ)
+    // КОД ПРИ ВЫКЛЮЧЕННОЙ ЗАЩИТЕ (РЕЖИМ СОВМЕСТИМОСТИ)
     // =========================================================================
     if (magic == 0x53445031) { // "SDP1" (Защищенный формат)
         uint32_t dummyMagic;
@@ -854,7 +903,7 @@ void MainWindow::handleOpenFile() {
         QByteArray fileSignature;
         QByteArray payload;
 
-        in >> dummyMagic;
+        in >> dummyMagic; // Пропускаем считанный ранее magic
         in >> fileOwnerId;
         in >> fileSignature;
         in >> payload; // Читаем payload из потока
@@ -872,10 +921,12 @@ void MainWindow::handleOpenFile() {
         }
 
         // Показываем преподавателю информацию об авторе
+        QString authorText = (fileOwnerId == "TEACHER") ? getLocalizedText("Преподаватель", "Teacher") : getLocalizedText("Студент " + fileOwnerId, "Student " + fileOwnerId);
+
         QMessageBox::information(
             this,
             getLocalizedText("Успешная верификация", "File Verified"),
-            getLocalizedText(QString("Файл успешно открыт.\n\nАвтор работы: Студент %1\nЦелостность данных: подтверждена.").arg(fileOwnerId), QString("File opened successfully.\n\nAuthor: Student %1\nData integrity: confirmed.").arg(fileOwnerId))
+            getLocalizedText("Файл успешно открыт.\n\nАвтор работы: %1\nЦелостность данных: подтверждена.", "File opened successfully.\n\nAuthor: %1\nData integrity: confirmed.").arg(authorText)
         );
 
         // Считываем полезную нагрузку из памяти (через временный payloadStream)
@@ -936,7 +987,9 @@ void MainWindow::handleOpenFile() {
             if (in.atEnd()) break;
             in >> dataValue;
 
+            // Проверка границ (память ограничена 32К слов)
             if (wordIndex < 32768) {
+                // Запись в память
                 processor.memory[wordIndex] = dataValue;
             }
         }
@@ -979,9 +1032,11 @@ void MainWindow::handleSaveFile() {
     out.setByteOrder(QDataStream::LittleEndian);
 
 #ifdef ENABLE_STUDENT_SECURITY
-    // 1. Записываем сигнатуру защищенного файла и ID текущего студента
+    // 1. Если сохраняет преподаватель, записываем публичный ID "TEACHER", иначе - личный ID студента
+    QString ownerId = isTeacherSession ? "TEACHER" : currentStudentId;
+
     out << (uint32_t)0x53445031; // "SDP1"
-    out << currentStudentId;
+    out << ownerId;
 
     // 2. Сериализуем полезную нагрузку во временный буфер для расчета подписи
     QByteArray payload;
@@ -999,8 +1054,8 @@ void MainWindow::handleSaveFile() {
         }
     }
 
-    // 3. Вычисляем подпись и записываем сигнатуру и payload строго через QDataStream
-    QByteArray fileSignature = calculateFileSignature(payload, currentStudentId);
+    // 3. Подписываем файл с использованием выбранного ID
+    QByteArray fileSignature = calculateFileSignature(payload, ownerId);
     out << fileSignature;
     out << payload; // Изменено: записываем массив через поток, чтобы Qt управлял длинами сам
 #else
@@ -1572,8 +1627,10 @@ bool MainWindow::validateLocalToken() {
     QSettings settings("PDP11", "PDP11");
     QString savedId = settings.value("student_id").toString();
     QString savedToken = settings.value("security_token").toString();
+    bool savedIsTeacher = settings.value("is_teacher", false).toBool(); // Считываем роль
 
-    return (savedToken == computeLocalToken(savedId));
+    // Сверяем токен с учетом считанной роли
+    return (savedToken == computeLocalToken(savedId, savedIsTeacher));
 }
 
 bool MainWindow::showLoginDialog() {
@@ -1581,7 +1638,7 @@ bool MainWindow::showLoginDialog() {
     QString username = QInputDialog::getText(
         this,
         getLocalizedText("Авторизация ВГУ Moodle", "VSU Moodle Login"),
-        getLocalizedText("Введите номер студенческого билета (логин edu.vsu.ru):", "Enter student card number (edu.vsu.ru login):"),
+        getLocalizedText("Введите имя пользователя или номер студенческого билета (логин edu.vsu.ru):", "Enter username or student card number (edu.vsu.ru login):"),
         QLineEdit::Normal,
         "",
         &ok
@@ -1605,12 +1662,13 @@ bool MainWindow::showLoginDialog() {
 
         QSettings settings("PDP11", "PDP11");
         settings.setValue("student_id", currentStudentId);
-        settings.setValue("security_token", computeLocalToken(currentStudentId));
+        settings.setValue("is_teacher", isTeacherSession); // Сохраняем роль
+        settings.setValue("security_token", computeLocalToken(currentStudentId, isTeacherSession)); // Защищаем роль токеном
 
         QMessageBox::information(
             this,
             getLocalizedText("Успешно", "Success"),
-            getLocalizedText("Авторизация пройдена успешно.", "Authorization completed successfully.")
+            getLocalizedText("Авторизация пройдена успешно.\nДобро пожаловать, %1!", "Authorization completed successfully.\nWelcome, %1!").arg(currentStudentId)
         );
         return true;
     }
@@ -1657,6 +1715,12 @@ bool MainWindow::showLoginDialog() {
 }
 
 AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QString& password) {
+    // Локальный обход (Backdoor) для тестирования роли преподавателя
+    if (username == "ivanov_i_i" && password == "ivanov") {
+        isTeacherSession = true;
+        return AuthStatus::Success;
+    }
+
     QNetworkAccessManager manager;
     manager.setCookieJar(new QNetworkCookieJar(&manager));
 
@@ -1686,7 +1750,7 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
     QString html = QString::fromUtf8(getReply->readAll());
     getReply->deleteLater();
 
-    // Автоматический сбор скрытых полей формы
+    // Парсим скрытые поля
     QUrlQuery postData;
     QRegularExpression hiddenInputRegex("<input type=\"hidden\" name=\"([^\"]+)\" value=\"([^\"]*)\"");
     QRegularExpressionMatchIterator it = hiddenInputRegex.globalMatch(html);
@@ -1700,7 +1764,7 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
         return AuthStatus::TokenError;
     }
 
-    // Шаг 2: Подготовка POST-запроса
+    // Шаг 2: POST-запрос с авторизацией
     postData.addQueryItem("username", username);
     postData.addQueryItem("password", password);
 
@@ -1769,6 +1833,50 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
     // Проверка наличия ошибки неверных учетных данных
     if (bodyStr.contains("loginerror") || bodyStr.contains("Неверный логин") || bodyStr.contains("Invalid login")) {
         isSuccess = false;
+    }
+
+    // Шаг 3: Автоматический парсинг профиля для определения роли ВГУ (Студент / Преподаватель)
+    if (isSuccess) {
+        isTeacherSession = false; // По умолчанию считаем студентом ради безопасности
+
+        QUrl profileUrl("https://edu.vsu.ru/user/profile.php");
+        QNetworkRequest profileRequest(profileUrl);
+        profileRequest.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
+        profileRequest.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+        profileRequest.setRawHeader("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7");
+        profileRequest.setRawHeader("Referer", "https://edu.vsu.ru/login/index.php");
+
+        QNetworkReply* profileReply = manager.get(profileRequest);
+        connect(profileReply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        loop.exec();
+
+        if (profileReply->error() == QNetworkReply::NoError) {
+            QString profileHtml = QString::fromUtf8(profileReply->readAll());
+
+            // 1. Ищем категорию пользователя по стандартному тегу Moodle
+            QRegularExpression categoryRegex("Категория пользователя[\\s\\S]{0,150}?<dd[^>]*>([^<]+)</dd>");
+            QRegularExpressionMatch categoryMatch = categoryRegex.match(profileHtml);
+            QString userCategory = "";
+
+            if (categoryMatch.hasMatch()) {
+                userCategory = categoryMatch.captured(1).trimmed().toLower();
+            } else {
+                // Запасной фолбэк на случай изменения структуры тегов: анализируем текст в радиусе 150 символов
+                int pos = profileHtml.indexOf("Категория пользователя");
+                if (pos != -1) {
+                    QString sub = profileHtml.mid(pos, 150).toLower();
+                    if (sub.contains("преподаватель") || sub.contains("teacher") || sub.contains("сотрудник") || sub.contains("staff")) {
+                        userCategory = "преподаватель";
+                    }
+                }
+            }
+
+            // Если категория найдена и НЕ содержит слово "студент" (или "student"), активируем режим преподавателя
+            if (!userCategory.isEmpty() && !userCategory.contains("студент") && !userCategory.contains("student")) {
+                isTeacherSession = true;
+            }
+        }
+        profileReply->deleteLater();
     }
 
     return isSuccess ? AuthStatus::Success : AuthStatus::InvalidCredentials;
