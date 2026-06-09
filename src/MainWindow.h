@@ -115,6 +115,10 @@ public:
                 glyph = QChar(0xE74E);
                 color = isDark ? QColor(66, 156, 255) : QColor(0, 120, 215); // Светло-синий / Синий Windows
                 break;
+            case QStyle::SP_DialogCloseButton:
+                glyph = QChar(0xF3B1); // Иконка SignOut
+                color = isDark ? QColor(255, 120, 120) : QColor(192, 0, 0); // Красный / Алый
+                break;
             case QStyle::SP_BrowserStop:
                 glyph = QChar(0xE711);
                 color = isDark ? QColor(255, 82, 82) : QColor(232, 17, 35);  // Розоватый / Красный Windows
@@ -229,6 +233,10 @@ private slots:
     void handleScreenShow();
     void handleScreenClear();
     void handleScreenRemove();
+
+#ifdef ENABLE_STUDENT_SECURITY
+    void handleLogout(); // Слот для выхода из аккаунта
+#endif
 
 private:
     // Оптимальный размер моноширинного шрифта под каждую ОС
@@ -388,6 +396,8 @@ private:
      * @brief Синхронная проверка логина/пароля на сервере Moodle edu.vsu.ru.
      */
     AuthStatus authenticateViaMoodle(const QString& username, const QString& password);
+
+    QAction *actLogout = nullptr; // ДОБАВЛЕНО: Действие выхода
 #endif
     /**
      * @brief Вычисляет HMAC-SHA256 подпись для защиты структуры файла от подмены.

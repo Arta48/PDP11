@@ -109,7 +109,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     updateUserInterface();
 
 #ifdef ENABLE_STUDENT_SECURITY
+    #ifdef Q_OS_WIN
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope, "PDP11", "PDP11");
+    #else
     QSettings settings("PDP11", "PDP11");
+    #endif
 
     // Сценарий 1: Конфиг существует
     if (settings.contains("student_id") && settings.contains("security_token")) {
@@ -253,6 +257,9 @@ void MainWindow::updateWidgetsTheme() {
 
     if (actOpen) actOpen->setIcon(style->standardIcon(QStyle::SP_DialogOpenButton));
     if (actSave) actSave->setIcon(style->standardIcon(QStyle::SP_DialogSaveButton));
+#ifdef ENABLE_STUDENT_SECURITY
+    if (actLogout) actLogout->setIcon(style->standardIcon(QStyle::SP_DialogCloseButton));
+#endif
     if (actExit) actExit->setIcon(style->standardIcon(QStyle::SP_BrowserStop));
     if (actStep) actStep->setIcon(style->standardIcon(QStyle::SP_MediaSkipForward));
     if (actRun) actRun->setIcon(style->standardIcon(QStyle::SP_MediaPlay));
@@ -290,6 +297,11 @@ void MainWindow::setupUserInterface() {
     actSave = new QAction(style->standardIcon(QStyle::SP_DialogSaveButton), getLocalizedText("&Сохранить файл", "&Save File"), this);
     actSave->setShortcut(QKeySequence("Ctrl+S"));
     connect(actSave, &QAction::triggered, this, &MainWindow::handleSaveFile);
+
+#ifdef ENABLE_STUDENT_SECURITY
+    actLogout = new QAction(style->standardIcon(QStyle::SP_DialogCloseButton), getLocalizedText("Выйти из учетной записи", "Logout"), this);
+    connect(actLogout, &QAction::triggered, this, &MainWindow::handleLogout);
+#endif
 
     actExit = new QAction(style->standardIcon(QStyle::SP_BrowserStop), getLocalizedText("Вы&ход", "E&xit"), this);
     connect(actExit, &QAction::triggered, this, &MainWindow::handleExit);
@@ -347,6 +359,10 @@ void MainWindow::setupUserInterface() {
     QMenu *fileMenu = menuBar()->addMenu(getLocalizedText("&Файл", "&File"));
     fileMenu->addAction(actOpen);
     fileMenu->addAction(actSave);
+#ifdef ENABLE_STUDENT_SECURITY
+    fileMenu->addSeparator();
+    fileMenu->addAction(actLogout);
+#endif
     fileMenu->addSeparator();
     fileMenu->addAction(actExit);
 
@@ -1624,7 +1640,11 @@ void MainWindow::handleAbout() {
 #ifdef ENABLE_STUDENT_SECURITY
 
 bool MainWindow::validateLocalToken() {
+    #ifdef Q_OS_WIN
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope, "PDP11", "PDP11");
+    #else
     QSettings settings("PDP11", "PDP11");
+    #endif
     QString savedId = settings.value("student_id").toString();
     QString savedToken = settings.value("security_token").toString();
     bool savedIsTeacher = settings.value("is_teacher", false).toBool(); // Считываем роль
@@ -1660,7 +1680,11 @@ bool MainWindow::showLoginDialog() {
     if (status == AuthStatus::Success) {
         currentStudentId = username.trimmed();
 
+    #ifdef Q_OS_WIN
+        QSettings settings(QSettings::IniFormat, QSettings::UserScope, "PDP11", "PDP11");
+    #else
         QSettings settings("PDP11", "PDP11");
+    #endif
         settings.setValue("student_id", currentStudentId);
         settings.setValue("is_teacher", isTeacherSession); // Сохраняем роль
         settings.setValue("security_token", computeLocalToken(currentStudentId, isTeacherSession)); // Защищаем роль токеном
@@ -1880,6 +1904,34 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
     }
 
     return isSuccess ? AuthStatus::Success : AuthStatus::InvalidCredentials;
+}
+
+void MainWindow::handleLogout() {
+    #ifdef Q_OS_WIN
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope, "PDP11", "PDP11");
+    #else
+    QSettings settings("PDP11", "PDP11");
+    #endif
+
+    settings.remove("student_id");
+    settings.remove("security_token");
+    settings.remove("is_teacher");
+
+    currentStudentId = "";
+    isTeacherSession = false;
+
+    QMessageBox::information(
+        this,
+        getLocalizedText("Выход", "Logout"),
+        getLocalizedText("Вы успешно вышли из учетной записи.", "Successfully logged out.")
+    );
+
+    // Принудительно вызываем окно входа. Если пользователь нажмет «Отмена» — закрываем приложение.
+    if (!showLoginDialog()) {
+        close();
+    } else {
+        updateUserInterface(); // Если вошел новый пользователь, обновляем интерфейс
+    }
 }
 #endif
 QByteArray MainWindow::calculateFileSignature(const QByteArray& fileData, const QString& studentId) const {
