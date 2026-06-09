@@ -388,12 +388,12 @@ private:
     bool validateLocalToken();
 
     /**
-     * @brief Отображает диалог входа и отправляет запрос на edu.vsu.ru.
+     * @brief Отображает диалог входа и отправляет запрос на.
      */
     bool showLoginDialog();
 
     /**
-     * @brief Синхронная проверка логина/пароля на сервере Moodle edu.vsu.ru.
+     * @brief Синхронная проверка логина/пароля на сервере Moodle.
      */
     AuthStatus authenticateViaMoodle(const QString& username, const QString& password);
 
@@ -408,8 +408,10 @@ private:
     static inline const QString MOODLE_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
     // Ссылки на портал Moodle ВГУ
-    static inline const QString MOODLE_LOGIN_URL = "https://edu.vsu.ru/login/index.php";
-    static inline const QString MOODLE_PROFILE_URL = "https://edu.vsu.ru/user/profile.php";
+    static inline const QString MOODLE_DOMAIN = "edu.vsu.ru"; // Базовый домен
+    static inline const QString MOODLE_BASE_URL = "https://" + MOODLE_DOMAIN; // Базовый URL
+    static inline const QString MOODLE_LOGIN_URL = MOODLE_BASE_URL + "/login/index.php"; // URL входа
+    static inline const QString MOODLE_PROFILE_URL = MOODLE_BASE_URL + "/user/profile.php"; // URL профиля
 
     // Тестовый обход (Backdoor) для преподавателя в офлайн
     static inline const QString BACKDOOR_USER = "ivanov_i_i";
