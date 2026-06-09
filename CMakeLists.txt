@@ -48,6 +48,10 @@ if(WIN32)
 
     # Линковка системных библиотек компилятора
     set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+
+    # Принудительно подключаем Winsock2 и Crypt32 в самый конец линковки
+    set(CMAKE_CXX_STANDARD_LIBRARIES "-lws2_32 -lcrypt32 ${CMAKE_CXX_STANDARD_LIBRARIES}")
+
     add_definitions(-DQT_STATIC)
 endif()
 
