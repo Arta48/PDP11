@@ -35,6 +35,7 @@ The emulator is written in **C++17** using the **Qt6** framework. It supports on
 *   **Help system:** Built-in context help for commands and an included detailed reference guide in [**PDF**](Docs/PDP11.pdf) and [**Markdown**](Docs/PDP11.md) formats.
 *   **Bilingual support:** The application interface, built-in disassembler, context help for commands and detailed reference guide automatically adapt to your system's language (English / Russian).
 *   **Save and load:** Support for importing and exporting programs in the `.pdp` format.
+*   **Student Verification & Academic Integrity:** Supports strict authentication through the university Moodle portal (`edu.vsu.ru`) to bind saved `.pdp` files to a specific student ID via hardware-backed cryptographic signatures (HMAC-SHA256). Classmates cannot open or copy each other's work.
 
 ---
 
