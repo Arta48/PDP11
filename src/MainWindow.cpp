@@ -125,7 +125,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
             QMessageBox::warning(
                 this,
                 getLocalizedText("Внимание", "Warning"),
-                getLocalizedText("Обнаружен перенос конфигурации или запуск на другом компьютере.\n\nДля подтверждения личности и продолжения работы необходимо заново авторизоваться под своей учетной записью Moodle (edu.vsu.ru).","Configuration transfer or execution on another computer detected.\n\nTo verify your identity and continue, please log in again with your Moodle account (edu.vsu.ru).")
+                getLocalizedText("Обнаружен перенос конфигурации или запуск на другом компьютере.\nДля подтверждения личности и продолжения работы необходимо заново авторизоваться под своей учетной записью Moodle (%1).","Configuration transfer or execution on another computer detected.\nTo verify your identity and continue, please log in again with your Moodle account (%1).").arg(MOODLE_DOMAIN)
             );
 
             if (!showLoginDialog()) {
@@ -1658,7 +1658,7 @@ bool MainWindow::showLoginDialog() {
     QString username = QInputDialog::getText(
         this,
         getLocalizedText("Авторизация ВГУ Moodle", "VSU Moodle Login"),
-        getLocalizedText("Введите имя пользователя / номер студенческого билета (логин edu.vsu.ru):", "Enter username / student card number (edu.vsu.ru login):"),
+        getLocalizedText("Введите имя пользователя / номер студенческого билета (логин %1):", "Enter username / student card number (%1 login):").arg(MOODLE_DOMAIN),
         QLineEdit::Normal,
         "",
         &ok
@@ -1700,7 +1700,7 @@ bool MainWindow::showLoginDialog() {
         QMessageBox::critical(
             this,
             getLocalizedText("Ошибка сети", "Network Error"),
-            getLocalizedText("Отсутствует интернет-соединение или сервер edu.vsu.ru недоступен.\nПожалуйста, проверьте подключение к сети.", "No internet connection or edu.vsu.ru is down.\nPlease check your network connection.")
+            getLocalizedText("Отсутствует интернет-соединение или сервер %1 недоступен.\nПожалуйста, проверьте подключение к сети.", "No internet connection or %1 is down.\nPlease check your network connection.").arg(MOODLE_DOMAIN)
         );
         return false;
     }
@@ -1798,8 +1798,8 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
     postRequest.setHeader(QNetworkRequest::UserAgentHeader, MOODLE_USER_AGENT);
     postRequest.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
     postRequest.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-    postRequest.setRawHeader("Referer", "https://edu.vsu.ru/login/index.php");
-    postRequest.setRawHeader("Origin", "https://edu.vsu.ru");
+    postRequest.setRawHeader("Referer", MOODLE_LOGIN_URL.toUtf8());
+    postRequest.setRawHeader("Origin", MOODLE_BASE_URL.toUtf8());
 
     // Кодируем все параметры по стандарту x-www-form-urlencoded вручную
     QByteArray postBody;
@@ -1866,7 +1866,7 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
         profileRequest.setHeader(QNetworkRequest::UserAgentHeader, MOODLE_USER_AGENT);
         profileRequest.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
         profileRequest.setRawHeader("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7");
-        profileRequest.setRawHeader("Referer", "https://edu.vsu.ru/login/index.php");
+        profileRequest.setRawHeader("Referer", MOODLE_LOGIN_URL.toUtf8());
 
         QNetworkReply* profileReply = manager.get(profileRequest);
         connect(profileReply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
