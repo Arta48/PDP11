@@ -377,7 +377,7 @@ private:
      * Параметр isTeacher добавлен в расчет хэша, чтобы студент не мог подделать роль в конфигах.
      */
     QString computeLocalToken(const QString& studentId, bool isTeacher) const {
-        QString input = studentId + (isTeacher ? "teacher" : "student") + getMachineFingerprint() + "VsuPdp11Salt2026";
+        QString input = studentId + (isTeacher ? "teacher" : "student") + getMachineFingerprint() + SECURITY_SALT;
         return QCryptographicHash::hash(input.toUtf8(), QCryptographicHash::Sha256).toHex();
     }
 
@@ -398,7 +398,28 @@ private:
     AuthStatus authenticateViaMoodle(const QString& username, const QString& password);
 
     QAction *actLogout = nullptr; // ДОБАВЛЕНО: Действие выхода
+
+    // --- Константы только для режима защиты ---
+    static inline const QString SECURITY_SALT = "VsuPdp11Salt2026"; // Соль локального токена ПК
+    static inline const QString SETTINGS_ORG = "PDP11"; // Имя папки настроек (организация)
+    static inline const QString SETTINGS_APP = "PDP11"; // Имя папки настроек (приложение)
+
+    // Единый User-Agent для маскировки под браузер
+    static inline const QString MOODLE_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+    // Ссылки на портал Moodle ВГУ
+    static inline const QString MOODLE_LOGIN_URL = "https://edu.vsu.ru/login/index.php";
+    static inline const QString MOODLE_PROFILE_URL = "https://edu.vsu.ru/user/profile.php";
+
+    // Тестовый обход (Backdoor) для преподавателя в офлайн
+    static inline const QString BACKDOOR_USER = "ivanov_i_i";
+    static inline const QString BACKDOOR_PASS = "ivanov";
 #endif
+    // --- Константы безопасности и формата файлов (доступны всегда) ---
+    static constexpr uint32_t SECURE_FILE_MAGIC = 0x53445031; // Маркер "SDP1"
+    static inline const QString FILE_SIGNATURE_SALT = "VsuKeySalt"; // Соль подписи файла
+    static inline const QString TEACHER_ID_PLACEHOLDER = "TEACHER"; // Публичный маркер преподавателя
+
     /**
      * @brief Вычисляет HMAC-SHA256 подпись для защиты структуры файла от подмены.
      */
