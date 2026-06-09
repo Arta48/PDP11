@@ -110,9 +110,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
 #ifdef ENABLE_STUDENT_SECURITY
     #ifdef Q_OS_WIN
-    QSettings settings(QSettings::IniFormat, QSettings::UserScope, "PDP11", "PDP11");
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope, SETTINGS_ORG, SETTINGS_APP);
     #else
-    QSettings settings("PDP11", "PDP11");
+    QSettings settings(SETTINGS_ORG, SETTINGS_APP);
     #endif
 
     // Сценарий 1: Конфиг существует
@@ -778,9 +778,9 @@ void MainWindow::handleOpenFile() {
     processor.resetProcessor();
 
     // Заглядываем в первые 4 байта файла без смещения указателя чтения (Peeking)
-    QByteArray peekData = dataFile.peek(4);
+    QByteArray peekData = dataFile.peek(sizeof(SECURE_FILE_MAGIC));
     uint32_t magic = 0;
-    if (peekData.size() == 4) {
+    if (peekData.size() == sizeof(SECURE_FILE_MAGIC)) {
         QDataStream peekStream(peekData);
         peekStream.setByteOrder(QDataStream::LittleEndian);
         peekStream >> magic;
@@ -790,7 +790,7 @@ void MainWindow::handleOpenFile() {
     // =========================================================================
     // КОД ПРИ ВКЛЮЧЕННОЙ ЗАЩИТЕ (СЦЕНАРИЙ СТУДЕНТА И ПРЕПОДАВАТЕЛЯ)
     // =========================================================================
-    if (magic == 0x53445031) { // "SDP1" (Защищенный формат)
+    if (magic == SECURE_FILE_MAGIC) { // "SDP1" (Защищенный формат)
         uint32_t dummyMagic;
         QString fileOwnerId;
         QByteArray fileSignature;
@@ -816,8 +816,8 @@ void MainWindow::handleOpenFile() {
 
         // Защита от списывания: Владелец файла должен совпадать с текущим студентом.
         // Исключение 1: Если залогинен преподаватель (!isTeacherSession), блокировка не срабатывает.
-        // Исключение 2: Если файл был создан преподавателем (fileOwnerId == "TEACHER"), студент имеет право его открыть!
-        if (!isTeacherSession && fileOwnerId != currentStudentId && fileOwnerId != "TEACHER") {
+        // Исключение 2: Если файл был создан преподавателем (fileOwnerId == TEACHER_ID_PLACEHOLDER), студент имеет право его открыть!
+        if (!isTeacherSession && fileOwnerId != currentStudentId && fileOwnerId != TEACHER_ID_PLACEHOLDER) {
             QMessageBox::critical(
                 this,
                 getLocalizedText("Доступ запрещен", "Access Denied"),
@@ -830,7 +830,7 @@ void MainWindow::handleOpenFile() {
         // Если залогинен преподаватель, выводим информацию об авторе
         if (isTeacherSession) {
             // Форматируем имя автора в зависимости от его роли
-            QString authorText = (fileOwnerId == "TEACHER") ? getLocalizedText("Преподаватель", "Teacher") : getLocalizedText("Студент " + fileOwnerId, "Student " + fileOwnerId);
+            QString authorText = (fileOwnerId == TEACHER_ID_PLACEHOLDER) ? getLocalizedText("Преподаватель", "Teacher") : getLocalizedText("Студент " + fileOwnerId, "Student " + fileOwnerId);
 
             QMessageBox::information(
                 this,
@@ -913,7 +913,7 @@ void MainWindow::handleOpenFile() {
     // =========================================================================
     // КОД ПРИ ВЫКЛЮЧЕННОЙ ЗАЩИТЕ (РЕЖИМ СОВМЕСТИМОСТИ)
     // =========================================================================
-    if (magic == 0x53445031) { // "SDP1" (Защищенный формат)
+    if (magic == SECURE_FILE_MAGIC) { // "SDP1" (Защищенный формат)
         uint32_t dummyMagic;
         QString fileOwnerId;
         QByteArray fileSignature;
@@ -1048,10 +1048,10 @@ void MainWindow::handleSaveFile() {
     out.setByteOrder(QDataStream::LittleEndian);
 
 #ifdef ENABLE_STUDENT_SECURITY
-    // 1. Если сохраняет преподаватель, записываем публичный ID "TEACHER", иначе - личный ID студента
-    QString ownerId = isTeacherSession ? "TEACHER" : currentStudentId;
+    // 1. Если сохраняет преподаватель, записываем публичный TEACHER_ID_PLACEHOLDER, иначе - личный ID студента
+    QString ownerId = isTeacherSession ? TEACHER_ID_PLACEHOLDER : currentStudentId;
 
-    out << (uint32_t)0x53445031; // "SDP1"
+    out << SECURE_FILE_MAGIC; // "SDP1"
     out << ownerId;
 
     // 2. Сериализуем полезную нагрузку во временный буфер для расчета подписи
@@ -1641,9 +1641,9 @@ void MainWindow::handleAbout() {
 
 bool MainWindow::validateLocalToken() {
     #ifdef Q_OS_WIN
-    QSettings settings(QSettings::IniFormat, QSettings::UserScope, "PDP11", "PDP11");
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope, SETTINGS_ORG, SETTINGS_APP);
     #else
-    QSettings settings("PDP11", "PDP11");
+    QSettings settings(SETTINGS_ORG, SETTINGS_APP);
     #endif
     QString savedId = settings.value("student_id").toString();
     QString savedToken = settings.value("security_token").toString();
@@ -1658,7 +1658,7 @@ bool MainWindow::showLoginDialog() {
     QString username = QInputDialog::getText(
         this,
         getLocalizedText("Авторизация ВГУ Moodle", "VSU Moodle Login"),
-        getLocalizedText("Введите имя пользователя или номер студенческого билета (логин edu.vsu.ru):", "Enter username or student card number (edu.vsu.ru login):"),
+        getLocalizedText("Введите имя пользователя / номер студенческого билета (логин edu.vsu.ru):", "Enter username / student card number (edu.vsu.ru login):"),
         QLineEdit::Normal,
         "",
         &ok
@@ -1681,9 +1681,9 @@ bool MainWindow::showLoginDialog() {
         currentStudentId = username.trimmed();
 
     #ifdef Q_OS_WIN
-        QSettings settings(QSettings::IniFormat, QSettings::UserScope, "PDP11", "PDP11");
+        QSettings settings(QSettings::IniFormat, QSettings::UserScope, SETTINGS_ORG, SETTINGS_APP);
     #else
-        QSettings settings("PDP11", "PDP11");
+        QSettings settings(SETTINGS_ORG, SETTINGS_APP);
     #endif
         settings.setValue("student_id", currentStudentId);
         settings.setValue("is_teacher", isTeacherSession); // Сохраняем роль
@@ -1732,7 +1732,7 @@ bool MainWindow::showLoginDialog() {
         QMessageBox::critical(
             this,
             getLocalizedText("Ошибка авторизации", "Authentication Error"),
-            getLocalizedText("Неверный номер студенческого билета или пароль.", "Invalid student card number or password.")
+            getLocalizedText("Неверное имя пользователя / номер студенческого билета или пароль.", "Invalid username / student card number or password.")
         );
         return false;
     }
@@ -1740,7 +1740,7 @@ bool MainWindow::showLoginDialog() {
 
 AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QString& password) {
     // Локальный обход (Backdoor) для тестирования роли преподавателя
-    if (username == "ivanov_i_i" && password == "ivanov") {
+    if (username == BACKDOOR_USER && password == BACKDOOR_PASS) {
         isTeacherSession = true;
         return AuthStatus::Success;
     }
@@ -1748,12 +1748,10 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
     QNetworkAccessManager manager;
     manager.setCookieJar(new QNetworkCookieJar(&manager));
 
-    QString userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
     // Шаг 1: GET-запрос страницы входа для получения токена и кук сессии
-    QUrl loginUrl("https://edu.vsu.ru/login/index.php");
+    QUrl loginUrl(MOODLE_LOGIN_URL);
     QNetworkRequest getRequest(loginUrl);
-    getRequest.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
+    getRequest.setHeader(QNetworkRequest::UserAgentHeader, MOODLE_USER_AGENT);
     getRequest.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
     getRequest.setRawHeader("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7");
 
@@ -1797,7 +1795,7 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
     }
 
     QNetworkRequest postRequest(loginUrl);
-    postRequest.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
+    postRequest.setHeader(QNetworkRequest::UserAgentHeader, MOODLE_USER_AGENT);
     postRequest.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
     postRequest.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
     postRequest.setRawHeader("Referer", "https://edu.vsu.ru/login/index.php");
@@ -1863,9 +1861,9 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
     if (isSuccess) {
         isTeacherSession = false; // По умолчанию считаем студентом ради безопасности
 
-        QUrl profileUrl("https://edu.vsu.ru/user/profile.php");
+        QUrl profileUrl(MOODLE_PROFILE_URL);
         QNetworkRequest profileRequest(profileUrl);
-        profileRequest.setHeader(QNetworkRequest::UserAgentHeader, userAgent);
+        profileRequest.setHeader(QNetworkRequest::UserAgentHeader, MOODLE_USER_AGENT);
         profileRequest.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
         profileRequest.setRawHeader("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7");
         profileRequest.setRawHeader("Referer", "https://edu.vsu.ru/login/index.php");
@@ -1908,9 +1906,9 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
 
 void MainWindow::handleLogout() {
     #ifdef Q_OS_WIN
-    QSettings settings(QSettings::IniFormat, QSettings::UserScope, "PDP11", "PDP11");
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope, SETTINGS_ORG, SETTINGS_APP);
     #else
-    QSettings settings("PDP11", "PDP11");
+    QSettings settings(SETTINGS_ORG, SETTINGS_APP);
     #endif
 
     settings.remove("student_id");
@@ -1935,6 +1933,6 @@ void MainWindow::handleLogout() {
 }
 #endif
 QByteArray MainWindow::calculateFileSignature(const QByteArray& fileData, const QString& studentId) const {
-    QByteArray key = (studentId + "VsuKeySalt").toUtf8();
+    QByteArray key = (studentId + FILE_SIGNATURE_SALT).toUtf8();
     return QMessageAuthenticationCode::hash(fileData, key, QCryptographicHash::Sha256);
 }
