@@ -760,21 +760,32 @@ void MainWindow::handleOpenFile() {
     // Перед загрузкой новых данных сбрасываем состояние процессора
     processor.resetProcessor();
 
-#ifdef ENABLE_STUDENT_SECURITY
+    // Заглядываем в первые 4 байта файла без смещения указателя чтения (Peeking)
+    QByteArray peekData = dataFile.peek(4);
     uint32_t magic = 0;
-    in >> magic;
+    if (peekData.size() == 4) {
+        QDataStream peekStream(peekData);
+        peekStream.setByteOrder(QDataStream::LittleEndian);
+        peekStream >> magic;
+    }
 
-    if (magic == 0x53445031) { // "SDP1"
+#ifdef ENABLE_STUDENT_SECURITY
+    // =========================================================================
+    // КОД ПРИ ВКЛЮЧЕННОЙ ЗАЩИТЕ (СЦЕНАРИЙ СТУДЕНТА)
+    // =========================================================================
+    if (magic == 0x53445031) { // "SDP1" (Защищенный формат)
+        uint32_t dummyMagic;
         QString fileOwnerId;
         QByteArray fileSignature;
+
+        in >> dummyMagic; // Пропускаем считанный ранее magic
         in >> fileOwnerId;
         in >> fileSignature;
 
-        // Изменено: Читаем полезную нагрузку через QDataStream из кэша потока
         QByteArray payload;
         in >> payload;
 
-        // Проверяем криптографическую подпись структуры данных
+        // Проверяем криптографическую подпись данных на целостность
         QByteArray expectedSignature = calculateFileSignature(payload, fileOwnerId);
         if (fileSignature != expectedSignature) {
             QMessageBox::critical(this, getLocalizedText("Ошибка", "Error"),
@@ -792,7 +803,7 @@ void MainWindow::handleOpenFile() {
             return;
         }
 
-        // Настраиваем поток для десериализации проверенной полезной нагрузки
+        // Десериализуем данные из подтвержденной полезной нагрузки
         QDataStream payloadStream(&payload, QIODevice::ReadOnly);
         payloadStream.setByteOrder(QDataStream::LittleEndian);
 
@@ -822,45 +833,112 @@ void MainWindow::handleOpenFile() {
                 processor.memory[wordIndex] = dataValue;
             }
         }
-    } else {
-        // Если макрос безопасности активен, загрузка незащищенных файлов запрещается
-        QMessageBox::critical(this, getLocalizedText("Доступ запрещен", "Access Denied"),
-                              getLocalizedText("В системе включена защита файлов. Загрузка незащищенных или поврежденных файлов .pdp запрещена.",
-                                               "Security mode is enabled. Loading unprotected or corrupted .pdp files is prohibited."));
+    }
+    else { // Файл без защиты
+        // Если защита включена, импорт незащищенных файлов запрещен для исключения обхода
+        QMessageBox::critical(
+            this,
+            getLocalizedText("Доступ запрещен", "Access Denied"),
+            getLocalizedText("В системе включена защита файлов. Загрузка незащищенных или поврежденных файлов .pdp запрещена.", "Security mode is enabled. Loading unprotected or corrupted .pdp files is prohibited.")
+        );
         dataFile.close();
         return;
     }
 #else
-    // 1. Читаем регистры процессора из файла
-    for (int i = 0; i < 8; ++i) {
-        if (in.atEnd()) {
-            break;
+    // =========================================================================
+    // КОД ПРИ ВЫКЛЮЧЕННОЙ ЗАЩИТЕ (РЕЖИМ СОВМЕСТИМОСТИ И ПРЕПОДАВАТЕЛЯ)
+    // =========================================================================
+    if (magic == 0x53445031) { // "SDP1" (Защищенный формат)
+        uint32_t dummyMagic;
+        QString fileOwnerId;
+        QByteArray fileSignature;
+        QByteArray payload;
+
+        in >> dummyMagic;
+        in >> fileOwnerId;
+        in >> fileSignature;
+        in >> payload; // Читаем payload из потока
+
+        // Проверяем целостность файла
+        QByteArray expectedSignature = calculateFileSignature(payload, fileOwnerId);
+        if (fileSignature != expectedSignature) {
+            QMessageBox::critical(
+                this,
+                getLocalizedText("Ошибка", "Error"),
+                getLocalizedText("Целостность файла нарушена или файл поврежден.", "File integrity check failed.")
+            );
+            dataFile.close();
+            return;
         }
-        uint16_t registerValue;
-        in >> registerValue;
-        processor.registers[i] = registerValue;
+
+        // Показываем преподавателю информацию об авторе
+        QMessageBox::information(
+            this,
+            getLocalizedText("Успешная верификация", "File Verified"),
+            getLocalizedText(QString("Файл успешно открыт.\n\nАвтор работы: Студент %1\nЦелостность данных: подтверждена.").arg(fileOwnerId), QString("File opened successfully.\n\nAuthor: Student %1\nData integrity: confirmed.").arg(fileOwnerId))
+        );
+
+        // Считываем полезную нагрузку из памяти (через временный payloadStream)
+        QDataStream payloadStream(&payload, QIODevice::ReadOnly);
+        payloadStream.setByteOrder(QDataStream::LittleEndian);
+
+        // 1. Читаем регистры процессора
+        for (int i = 0; i < 8; ++i) {
+            if (payloadStream.atEnd()) break;
+            uint16_t registerValue;
+            payloadStream >> registerValue;
+            processor.registers[i] = registerValue;
+        }
+
+        // 2. Читаем PSW
+        if (!payloadStream.atEnd()) {
+            uint16_t processorStatusValue;
+            payloadStream >> processorStatusValue;
+            processor.processorStatusWord = processorStatusValue;
+        }
+
+        // 3. Читаем память
+        while (!payloadStream.atEnd()) {
+            uint16_t wordIndex = 0;
+            uint16_t dataValue = 0;
+            payloadStream >> wordIndex;
+            if (payloadStream.atEnd()) break;
+            payloadStream >> dataValue;
+            if (wordIndex < 32768) {
+                processor.memory[wordIndex] = dataValue;
+            }
+        }
     }
+    else { // Файл без защиты
+        // 1. Читаем регистры процессора из файла
+        for (int i = 0; i < 8; ++i) {
+            if (in.atEnd()) {
+                break;
+            }
+            uint16_t registerValue;
+            in >> registerValue;
+            processor.registers[i] = registerValue;
+        }
 
-    // 2. Читаем Регистр Состояния Процессора (PSW / RS)
-    if (!in.atEnd()) {
-        uint16_t processorStatusValue;
-        in >> processorStatusValue;
-        processor.processorStatusWord = processorStatusValue;
-    }
+        // 2. Читаем Регистр Состояния Процессора (PSW / RS)
+        if (!in.atEnd()) {
+            uint16_t processorStatusValue;
+            in >> processorStatusValue;
+            processor.processorStatusWord = processorStatusValue;
+        }
 
-    // 3. Читаем данные памяти: [Индекс слова] -> [Значение]
-    while (!in.atEnd()) {
-        uint16_t wordIndex = 0;
-        uint16_t dataValue = 0;
+        // 3. Читаем данные памяти: [Индекс слова] -> [Значение]
+        while (!in.atEnd()) {
+            uint16_t wordIndex = 0;
+            uint16_t dataValue = 0;
 
-        in >> wordIndex;
-        if (in.atEnd()) break;
-        in >> dataValue;
+            in >> wordIndex;
+            if (in.atEnd()) break;
+            in >> dataValue;
 
-        // Проверка границ (память ограничена 32К слов)
-        if (wordIndex < 32768) {
-            // Запись в память
-            processor.memory[wordIndex] = dataValue;
+            if (wordIndex < 32768) {
+                processor.memory[wordIndex] = dataValue;
+            }
         }
     }
 #endif
@@ -1695,10 +1773,8 @@ AuthStatus MainWindow::authenticateViaMoodle(const QString& username, const QStr
 
     return isSuccess ? AuthStatus::Success : AuthStatus::InvalidCredentials;
 }
-
+#endif
 QByteArray MainWindow::calculateFileSignature(const QByteArray& fileData, const QString& studentId) const {
     QByteArray key = (studentId + "VsuKeySalt").toUtf8();
     return QMessageAuthenticationCode::hash(fileData, key, QCryptographicHash::Sha256);
 }
-
-#endif
