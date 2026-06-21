@@ -89,25 +89,20 @@ The simplest way is to download the pre-compiled universal **`PDP11.dmg`** direc
 
 To build the project from source manually:
 
-1. Install the necessary dependencies via the Homebrew package manager (CMake, Qt6):
+1. Install the necessary dependencies via the Homebrew package manager (CMake, Qt6, Create-DMG):
    ```bash
-   brew install cmake qt6
+   brew install cmake qt6 create-dmg
    ```
 2. Clone the repository:
    ```bash
    git clone https://github.com/Arta48/PDP11.git
    cd PDP11
    ```
-3. Configure the build system, compile, and bundle all Qt dependencies into a portable `.dmg` installer:
+3. Run the build script:
    ```bash
-   # Configure and build
-   cmake -B build -DCMAKE_BUILD_TYPE=Release
-   cmake --build build -j$(sysctl -n hw.ncpu)
-
-   # Link dependencies into the app bundle and generate DMG
-   macdeployqt build/PDP11.app -dmg
+   sh compile_macos.sh
    ```
-   *The generated `PDP11.dmg` file will be located inside the `build/` directory.*
+   *The compiled `PDP11.dmg` file will be located in the `build-macos/` directory.*
 
 ### 🪟 Build on Windows
 

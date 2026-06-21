@@ -57,7 +57,7 @@
 
 ### 🐧 Сборка под Linux (Arch Linux / Manjaro)
 
-1. Установите необходимые зависимости (компилятор, CMake, Qt6):
+1. Установите необходимые зависимости (компилятор, CMake, Qt6, Create-DMG):
    ```bash
    sudo pacman -S base-devel cmake qt6-base mesa
    ```
@@ -89,23 +89,18 @@ sh setup_package.sh
 
 1. Установите необходимые зависимости через пакетный менеджер Homebrew (CMake, Qt6):
    ```bash
-   brew install cmake qt6
+   brew install cmake qt6 create-dmg
    ```
 2. Склонируйте репозиторий:
    ```bash
    git clone https://github.com/Arta48/PDP11.git
    cd PDP11
    ```
-3. Сконфигурируйте проект, скомпилируйте его и упакуйте все зависимости Qt во внешний образ `.dmg`:
+3. Запустите скрипт сборки:
    ```bash
-   # Конфигурация и компиляция
-   cmake -B build -DCMAKE_BUILD_TYPE=Release
-   cmake --build build -j$(sysctl -n hw.ncpu)
-
-   # Линковка системных dylib-библиотек в бандл и сборка DMG
-   macdeployqt build/PDP11.app -dmg
+   sh compile_macos.sh
    ```
-   *Готовый установщик `PDP11.dmg` будет находиться в директории `build/`.*
+   *Готовый файл `PDP11.dmg` будет лежать в директории `build-macos/`.*
 
 ### 🪟 Сборка под Windows
 

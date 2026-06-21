@@ -139,10 +139,10 @@ else()
     if(APPLE)
         # --- Настройки для macOS ---
         # На macOS собираем как Bundle для генерации .app директории
-        set(MACOSX_ICON assets/icon.icns)
+        set(MACOSX_ICON assets/macos/icon.icns)
         set(MACOSX_LOCALES
-            assets/locales/ru.lproj/InfoPlist.strings
-            assets/locales/en.lproj/InfoPlist.strings
+            assets/macos/locales/ru.lproj/InfoPlist.strings
+            assets/macos/locales/en.lproj/InfoPlist.strings
         )
         set(MACOSX_DOCS
             Docs/PDP11.pdf
@@ -150,8 +150,8 @@ else()
         )
         # Размечаем ресурсы внутри бандла .app
         set_source_files_properties(${MACOSX_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-        set_source_files_properties(assets/locales/ru.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/ru.lproj")
-        set_source_files_properties(assets/locales/en.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/en.lproj")
+        set_source_files_properties(assets/macos/locales/ru.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/ru.lproj")
+        set_source_files_properties(assets/macos/locales/en.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/en.lproj")
         set_source_files_properties(Docs/PDP11.pdf PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
         set_source_files_properties("Docs/PDP11 RU.pdf" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
@@ -159,7 +159,7 @@ else()
 
         # Задаем метаданные бандла и подключаем кастомный Info.plist.in
         set_target_properties(${EXE_NAME} PROPERTIES
-            MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/assets/Info.plist.in
+            MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/assets/macos/Info.plist.in
             MACOSX_BUNDLE_ICON_FILE icon.icns
             MACOSX_BUNDLE_BUNDLE_NAME "Command System Emulator PDP-11"
             MACOSX_BUNDLE_GUI_IDENTIFIER "com.arta48.pdp11"
