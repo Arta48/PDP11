@@ -496,7 +496,7 @@ Logic: The program implements a smooth diagonal bouncing animation on the 64x64 
 
 Address  Value   Mnemonic              Description
 001000   012706  MOV #1000, SP         Initialize Stack Pointer
-001002   001000                        (stack base address)
+001002   001000                        (stack address)
 001004   012700  MOV #10, R0           Set initial X coordinate
 001006   000010                        (X coordinate value = 8)
 001010   012701  MOV #20, R1           Set initial Y coordinate

@@ -1,3 +1,11 @@
+#!/bin/bash
+
+if [[ "$(uname)" != "Linux" ]] || ! command -v pacman > /dev/null; then
+    echo "This script can only be run on Arch-based Linux!"
+    exit 1
+fi
+
+
 # sudo at the beginning
 sudo echo > /dev/null
 

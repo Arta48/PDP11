@@ -1,3 +1,10 @@
+#!/bin/bash
+
+if [[ "$(uname)" != "Darwin" ]]; then
+    echo "This script can only be run on macOS!"
+    exit 1
+fi
+
 # 1. Попытка добавить пути к Qt6 из Homebrew в PATH
 if command -v brew &> /dev/null; then
     BREW_PREFIX=$(brew --prefix)
