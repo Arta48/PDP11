@@ -25,6 +25,51 @@
 #include <QStyleFactory>
 #include <QFontDatabase>
 
+#ifdef ENABLE_STUDENT_SECURITY
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+
+LoginDialog::LoginDialog(QWidget *parent) : QDialog(parent) {
+    setWindowTitle(getLocalizedText("Авторизация ВГУ Moodle", "VSU Moodle Login"));
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint); // Убираем кнопку "?" на Windows
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(18, 18, 18, 18); // Добавляем аккуратные внешние отступы
+    layout->setSpacing(8); // Устанавливаем комфортный интервал между элементами
+
+    // Поле Логина
+    layout->addWidget(new QLabel(getLocalizedText("Имя пользователя / Номер студенческого билета:", "Username / Student card number:"), this));
+    usernameField = new QLineEdit(this);
+    layout->addWidget(usernameField);
+
+    // Поле Пароля
+    layout->addWidget(new QLabel(getLocalizedText("Пароль:", "Password:"), this));
+    passwordField = new QLineEdit(this);
+    passwordField->setEchoMode(QLineEdit::Password);
+    layout->addWidget(passwordField);
+
+    // Небольшой визуальный разделитель перед кнопками
+    layout->addSpacing(10);
+
+    // Кнопки действий
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    loginButton = new QPushButton(getLocalizedText("Войти", "Login"), this);
+    cancelButton = new QPushButton(getLocalizedText("Отмена", "Cancel"), this);
+
+    loginButton->setDefault(true); // Кнопка "Войти" будет нажиматься по клавише Enter
+
+    btnLayout->addWidget(loginButton);
+    btnLayout->addWidget(cancelButton);
+    layout->addLayout(btnLayout);
+
+    connect(loginButton, &QPushButton::clicked, this, &QDialog::accept);
+    connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
+
+    resize(360, 180);
+}
+#endif
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 #if defined(Q_OS_WIN) || defined(Q_OS_MAC)
     // Проверяем, есть ли шрифт "Segoe MDL2 Assets" уже в системе
@@ -116,9 +161,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     #endif
 
     // Сценарий 1: Конфиг существует
-    if (settings.contains("student_id") && settings.contains("security_token")) {
+    if (settings.contains("user_id") && settings.contains("security_token")) {
         if (validateLocalToken()) {
-            currentStudentId = settings.value("student_id").toString();
+            currentStudentId = settings.value("user_id").toString();
             isTeacherSession = settings.value("is_teacher", false).toBool(); // Восстанавливаем роль
         } else {
             // Сценарий 2: Конфиг скопирован (хэш не совпал) -> Выводим предупреждение
@@ -1645,7 +1690,7 @@ bool MainWindow::validateLocalToken() {
     #else
     QSettings settings(SETTINGS_ORG, SETTINGS_APP);
     #endif
-    QString savedId = settings.value("student_id").toString();
+    QString savedId = settings.value("user_id").toString();
     QString savedToken = settings.value("security_token").toString();
     bool savedIsTeacher = settings.value("is_teacher", false).toBool(); // Считываем роль
 
@@ -1654,24 +1699,16 @@ bool MainWindow::validateLocalToken() {
 }
 
 bool MainWindow::showLoginDialog() {
-    bool ok;
-    QString username = QInputDialog::getText(
-        this,
-        getLocalizedText("Авторизация ВГУ Moodle", "VSU Moodle Login"),
-        getLocalizedText("Введите имя пользователя / номер студенческого билета (логин %1):", "Enter username / student card number (%1 login):").arg(MOODLE_DOMAIN),
-        QLineEdit::Normal,
-        "",
-        &ok
-    );
+    // Вызываем наше кастомное единое окно авторизации
+    LoginDialog loginDlg(this);
+    if (loginDlg.exec() != QDialog::Accepted) {
+        return false; // Если пользователь закрыл окно или нажал "Отмена"
+    }
 
-    if (!ok || username.trimmed().isEmpty()) return false;
+    QString username = loginDlg.getUsername();
+    QString password = loginDlg.getPassword();
 
-    QString password = QInputDialog::getText(this,
-        getLocalizedText("Авторизация VSU Moodle", "VSU Moodle Login"),
-        getLocalizedText("Введите пароль от личного кабинета:", "Enter portal password:"),
-        QLineEdit::Password, "", &ok);
-
-    if (!ok) return false;
+    if (username.trimmed().isEmpty()) return false;
 
     setEnabled(false);
     AuthStatus status = authenticateViaMoodle(username.trimmed(), password);
@@ -1685,15 +1722,14 @@ bool MainWindow::showLoginDialog() {
     #else
         QSettings settings(SETTINGS_ORG, SETTINGS_APP);
     #endif
-        settings.setValue("student_id", currentStudentId);
-        settings.setValue("is_teacher", isTeacherSession); // Сохраняем роль
-        settings.setValue("security_token", computeLocalToken(currentStudentId, isTeacherSession)); // Защищаем роль токеном
+        settings.setValue("user_id", currentStudentId);
+        settings.setValue("is_teacher", isTeacherSession);
+        settings.setValue("security_token", computeLocalToken(currentStudentId, isTeacherSession));
 
         QMessageBox::information(
             this,
             getLocalizedText("Успешно", "Success"),
-            getLocalizedText("Авторизация пройдена успешно.\nДобро пожаловать, %1!", "Authorization completed successfully.\nWelcome, %1!").arg(currentStudentId)
-        );
+            getLocalizedText("Авторизация пройдена успешно.\nДобро пожаловать, %1!", "Authorization completed successfully.\nWelcome, %1!").arg(currentStudentId));
         return true;
     }
     else if (status == AuthStatus::NetworkError) {
@@ -1708,7 +1744,15 @@ bool MainWindow::showLoginDialog() {
         QMessageBox::critical(
             this,
             getLocalizedText("Ошибка SSL / Безопасности", "SSL / Security Error"),
-            getLocalizedText("Ошибка безопасного соединения (SSL Handshake).\nУбедитесь, что на компьютере установлены библиотеки OpenSSL (они необходимы Qt для работы с HTTPS).", "Secure connection error (SSL Handshake).\nMake sure OpenSSL libraries are installed on your computer (they are required by Qt for HTTPS).")
+            getLocalizedText("Ошибка безопасного соединения (SSL Handshake).\nУбедитесь, что на компьютере установлены библиотеки OpenSSL.", "Secure connection error (SSL Handshake).\nMake sure OpenSSL libraries are installed on your computer.")
+            );
+        return false;
+    }
+    else if (status == AuthStatus::LockedAccount) {
+        QMessageBox::critical(
+            this,
+            getLocalizedText("Учетная запись заблокирована", "Account Locked"),
+            getLocalizedText("Ваша учетная запись на портале Moodle временно заблокирована из-за частых попыток входа.\nПожалуйста, проверьте свою университетскую почту — туда было отправлено письмо со ссылкой для разблокировки аккаунта.", "Your Moodle account has been temporarily locked due to multiple login attempts.\nPlease check your university student email for an unlock link.")
         );
         return false;
     }
@@ -1720,19 +1764,11 @@ bool MainWindow::showLoginDialog() {
         );
         return false;
     }
-    else if (status == AuthStatus::LockedAccount) {
-        QMessageBox::critical(
-            this,
-            getLocalizedText("Учетная запись заблокирована", "Account Locked"),
-            getLocalizedText("Ваша учетная запись на портале Moodle временно заблокирована из-за частых попыток входа.\n\nПожалуйста, проверьте свою университетскую почту (vsu.ru) — туда было отправлено письмо со ссылкой для разблокировки аккаунта.", "Your Moodle account has been temporarily locked due to multiple login attempts.\n\nPlease check your university student email (vsu.ru) for an unlock link.")
-        );
-        return false;
-    }
     else { // AuthStatus::InvalidCredentials
         QMessageBox::critical(
             this,
             getLocalizedText("Ошибка авторизации", "Authentication Error"),
-            getLocalizedText("Неверное имя пользователя / номер студенческого билета или пароль.", "Invalid username / student card number or password.")
+            getLocalizedText("Неверный номер студенческого билета или пароль.", "Invalid student card number or password.")
         );
         return false;
     }
@@ -1911,7 +1947,7 @@ void MainWindow::handleLogout() {
     QSettings settings(SETTINGS_ORG, SETTINGS_APP);
     #endif
 
-    settings.remove("student_id");
+    settings.remove("user_id");
     settings.remove("security_token");
     settings.remove("is_teacher");
 

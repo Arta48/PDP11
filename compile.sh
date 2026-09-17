@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ "$(uname)" != "Linux" ]]; then
+    echo "This script can only be run on Linux!"
+    exit 1
+fi
+
 # 1. Очистка старой сборки
 rm -rf build
 mkdir -p build

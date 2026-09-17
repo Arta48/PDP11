@@ -9,13 +9,16 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+# include: Общепринятый стандарт (от корня src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 # --- Настройки для Windows ---
 if(WIN32)
     set(QT_NO_PACKAGE_VERSION_CHECK TRUE)
     set(QT_NO_PACKAGE_VERSION_INCOMPATIBLE_WARNING TRUE)
 
     # --- Настройки для Windows из-под Linux ---
-    if (CMAKE_CROSSCOMPILING)
+    if(CMAKE_CROSSCOMPILING)
         # Используем CACHE PATH, чтобы это можно было переопределить из консоли при желании
         set(STATIC_BASE "/usr/x86_64-w64-mingw32/static" CACHE PATH "Path to static base")
 
@@ -26,6 +29,7 @@ if(WIN32)
         if(DEFINED ENV{MINGW_PREFIX})
             # Динамически считываем путь MSYS2 (работает и на GitHub Actions, и локально)
             set(STATIC_BASE "$ENV{MINGW_PREFIX}/qt6-static" CACHE PATH "Path to static base")
+
             # Сначала ищем в статической Qt, потом в обычном mingw
             set(CMAKE_FIND_ROOT_PATH "${STATIC_BASE};$ENV{MINGW_PREFIX}")
         elseif(EXISTS "C:/msys64")
@@ -56,10 +60,9 @@ if(WIN32)
 endif()
 
 # --- Поиск зависимостей ---
-if(WIN32)
-    # --- Настройки для Windows ---
-    find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Network)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Network)
 
+if(WIN32)
     # --- Настройки для Windows из-под Linux ---
     if(CMAKE_CROSSCOMPILING)
         set(LIB_PATH "/usr/x86_64-w64-mingw32/lib")
@@ -71,9 +74,6 @@ if(WIN32)
             set(LIB_PATH "C:/msys64/mingw64/lib")
         endif()
     endif()
-    
-    # Принудительно только статические библиотеки
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
     # 1. Harfbuzz + Graphite2
     find_library(HARFBUZZ_STATIC NAMES harfbuzz PATHS "${LIB_PATH}" NO_DEFAULT_PATH REQUIRED)
@@ -103,9 +103,6 @@ if(WIN32)
     if(TARGET WrapZSTD)
         set_target_properties(WrapZSTD PROPERTIES INTERFACE_LINK_LIBRARIES "${ZSTD_STATIC}")
     endif()
-else()
-    # --- Настройки для Linux и macOS ---
-    find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 endif()
 
 # --- Исходные файлы ---
@@ -121,12 +118,7 @@ if(WIN32)
     set(WIN_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/assets/resource.rc")
 
     # ВАЖНО: Включаем ресурсы напрямую в список файлов
-    qt_add_executable(${EXE_NAME}
-        WIN32
-        MANUAL_FINALIZATION
-        ${SOURCES}
-        ${WIN_RESOURCES}
-    )
+    qt_add_executable(${EXE_NAME} WIN32 MANUAL_FINALIZATION ${SOURCES} ${WIN_RESOURCES})
 
     # Линковка (порядок важен для статических библиотек!)
     target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets Qt6::Gui Qt6::Core Qt6::Network)

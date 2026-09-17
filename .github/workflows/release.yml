@@ -63,7 +63,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Patch and Run setup_package.sh
+      - name: Patch and Run setup_arch_package.sh
         run: |
           # Создаем изолированного пользователя builder для makepkg
           useradd -m builder
@@ -71,11 +71,11 @@ jobs:
           chown -R builder:builder .
 
           # Отключаем установку пакета (-i) и копируем ТОЛЬКО основной пакет (без debug) в корень перед очисткой
-          sed -i 's/makepkg -si/makepkg -s/g' setup_package.sh
-          sed -i 's/cd .. \&\& rm -rf pdp11_pkg/cp pdp11-[0-9]*.pkg.tar.zst ..\/PDP11.pkg.tar.zst \&\& cd .. \&\& rm -rf pdp11_pkg/g' setup_package.sh
+          sed -i 's/makepkg -si/makepkg -s/g' setup_arch_package.sh
+          sed -i 's/cd .. \&\& rm -rf pdp11_pkg/cp pdp11-[0-9]*.pkg.tar.zst ..\/PDP11.pkg.tar.zst \&\& cd .. \&\& rm -rf pdp11_pkg/g' setup_arch_package.sh
 
           # Запуск сборки от пользователя builder
-          su builder -c "bash setup_package.sh"
+          su builder -c "bash setup_arch_package.sh"
 
       - name: Upload Arch Artifact
         uses: actions/upload-artifact@v4
