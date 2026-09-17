@@ -208,6 +208,7 @@ class MainWindow : public QMainWindow {
 
 public:
     MainWindow(QWidget *parent = nullptr);
+    bool loadFile(const QString &fileName);
 
 #ifdef ENABLE_STUDENT_SECURITY
     // Ссылки на портал Moodle ВГУ
@@ -225,6 +226,10 @@ protected:
 
     // Перехват смены палитры
     void changeEvent(QEvent *event) override;
+
+    // Поддержка Drag-and-Drop
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private slots:
     // ==========================================

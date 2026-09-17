@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QFileInfo>
 #include "MainWindow.h"
 
 int main(int argc, char *argv[]) {
@@ -14,6 +15,19 @@ int main(int argc, char *argv[]) {
     // Инициализация и запуск главного окна
     MainWindow window;
     window.show();
+
+    // Проверяем переданные аргументы ("Открыть с помощью..." передает путь в argv)
+    const QStringList args = QCoreApplication::arguments();
+    for (int i = 1; i < args.size(); ++i) {
+        QString path = args.at(i);
+        QFileInfo fi(path);
+        if (fi.exists() && fi.isFile()) {
+            if (fi.suffix().toLower() == "pdp") {
+                window.loadFile(fi.absoluteFilePath());
+                break;
+            }
+        }
+    }
 
     return application.exec();
 }

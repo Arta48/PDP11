@@ -60,9 +60,10 @@ if(WIN32)
 endif()
 
 # --- Поиск зависимостей ---
-find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Network)
-
+# --- Настройки для Windows ---
 if(WIN32)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Network)
+
     # --- Настройки для Windows из-под Linux ---
     if(CMAKE_CROSSCOMPILING)
         set(LIB_PATH "/usr/x86_64-w64-mingw32/lib")
@@ -103,18 +104,28 @@ if(WIN32)
     if(TARGET WrapZSTD)
         set_target_properties(WrapZSTD PROPERTIES INTERFACE_LINK_LIBRARIES "${ZSTD_STATIC}")
     endif()
+# --- Настройки для Linux и macOS ---
+else()
+    # --- Настройки для macOS ---
+    if(APPLE AND NOT IOS AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT TARGET WrapOpenGL::WrapOpenGL)
+        find_package(OpenGL REQUIRED)
+        add_library(WrapOpenGL::WrapOpenGL INTERFACE IMPORTED)
+        target_link_libraries(WrapOpenGL::WrapOpenGL INTERFACE OpenGL::GL)
+    endif()
+
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Network)
 endif()
 
 # --- Исходные файлы ---
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h" "src/*/*.cpp" "src/*/*.h")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h")
 
 # --- Ресурсы ---
 set(RESOURCES assets/resources.qrc)
 qt_add_resources(SOURCES ${RESOURCES})
 
-# --- Сборка ---
+# --- Сборка исполняемых файлов под целевые ОС ---
 if(WIN32)
-    # --- Настройки для Windows ---
+    # --- Сборка под Windows ---
     set(WIN_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/assets/resource.rc")
 
     # ВАЖНО: Включаем ресурсы напрямую в список файлов
@@ -131,45 +142,38 @@ if(WIN32)
 
     # Финализация (обязательна для Qt6 на Windows)
     qt_finalize_executable(${EXE_NAME})
+elseif(APPLE)
+    # --- Сборка под macOS ---
+    # На macOS собираем как Bundle для генерации .app директории
+    set(MACOSX_ICON assets/macos/icon.icns)
+    set(MACOSX_LOCALES assets/macos/locales/ru.lproj/InfoPlist.strings assets/macos/locales/en.lproj/InfoPlist.strings)
+    set(MACOSX_DOCS Docs/PDP11.pdf "Docs/PDP11 RU.pdf")
+
+    # Размечаем ресурсы внутри бандла .app
+    set_source_files_properties(${MACOSX_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_source_files_properties(assets/macos/locales/ru.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/ru.lproj")
+    set_source_files_properties(assets/macos/locales/en.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/en.lproj")
+    set_source_files_properties(Docs/PDP11.pdf PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_source_files_properties("Docs/PDP11 RU.pdf" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+
+    add_executable(${EXE_NAME} MACOSX_BUNDLE ${SOURCES} ${MACOSX_ICON} ${MACOSX_LOCALES} ${MACOSX_DOCS})
+
+    # Задаем метаданные бандла и подключаем кастомный Info.plist.in
+    set_target_properties(${EXE_NAME} PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/assets/macos/Info.plist.in
+        MACOSX_BUNDLE_ICON_FILE icon.icns
+        MACOSX_BUNDLE_BUNDLE_NAME "Command System Emulator PDP-11"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.arta48.pdp11"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0.0"
+        MACOSX_BUNDLE_BUNDLE_VERSION "1.0.0"
+        MACOSX_BUNDLE_COPYRIGHT "Copyright © 2026 Arta48"
+        OUTPUT_NAME "Command System Emulator PDP-11" # Задает правильное имя папки .app
+    )
+
+    target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets Qt6::Network)
 else()
-    if(APPLE)
-        # --- Настройки для macOS ---
-        # На macOS собираем как Bundle для генерации .app директории
-        set(MACOSX_ICON assets/macos/icon.icns)
-        set(MACOSX_LOCALES
-            assets/macos/locales/ru.lproj/InfoPlist.strings
-            assets/macos/locales/en.lproj/InfoPlist.strings
-        )
-        set(MACOSX_DOCS
-            Docs/PDP11.pdf
-            "Docs/PDP11 RU.pdf"
-        )
-        # Размечаем ресурсы внутри бандла .app
-        set_source_files_properties(${MACOSX_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-        set_source_files_properties(assets/macos/locales/ru.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/ru.lproj")
-        set_source_files_properties(assets/macos/locales/en.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/en.lproj")
-        set_source_files_properties(Docs/PDP11.pdf PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-        set_source_files_properties("Docs/PDP11 RU.pdf" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-
-        add_executable(${EXE_NAME} MACOSX_BUNDLE ${SOURCES} ${MACOSX_ICON} ${MACOSX_LOCALES} ${MACOSX_DOCS})
-
-        # Задаем метаданные бандла и подключаем кастомный Info.plist.in
-        set_target_properties(${EXE_NAME} PROPERTIES
-            MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/assets/macos/Info.plist.in
-            MACOSX_BUNDLE_ICON_FILE icon.icns
-            MACOSX_BUNDLE_BUNDLE_NAME "Command System Emulator PDP-11"
-            MACOSX_BUNDLE_GUI_IDENTIFIER "com.arta48.pdp11"
-            MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0.0"
-            MACOSX_BUNDLE_BUNDLE_VERSION "1.0.0"
-            MACOSX_BUNDLE_COPYRIGHT "Copyright © 2026 Arta48"
-            OUTPUT_NAME "Command System Emulator PDP-11" # Задает правильное имя папки .app
-        )
-    else()
-        # --- Настройки для Linux ---
-        # Обычная сборка для Linux
-        add_executable(${EXE_NAME} ${SOURCES})
-    endif()
-
+    # --- Сборка под Linux ---
+    add_executable(${EXE_NAME} ${SOURCES})
     target_link_libraries(${EXE_NAME} PRIVATE Qt6::Widgets Qt6::Network)
 endif()
 

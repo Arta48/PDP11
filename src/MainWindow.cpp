@@ -24,6 +24,9 @@
 #include <QPixmapCache>
 #include <QStyleFactory>
 #include <QFontDatabase>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 
 #ifdef ENABLE_STUDENT_SECURITY
 #include <QVBoxLayout>
@@ -184,6 +187,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         }
     }
 #endif
+
+    setAcceptDrops(true);
 }
 
 // ==========================================
@@ -808,12 +813,16 @@ void MainWindow::handleOpenFile() {
     QString fileFilter = getLocalizedText("Файлы кода PDP-11 (*.pdp);;Все файлы (*.*)", "PDP-11 code files (*.pdp);;All Files (*.*)");
     QString selectedFileName = QFileDialog::getOpenFileName(this, getLocalizedText("Открыть файл", "Open File"), QString(), fileFilter);
 
-    if (selectedFileName.isEmpty()) return;
+    if (!selectedFileName.isEmpty()) {
+        loadFile(selectedFileName);
+    }
+}
 
-    QFile dataFile(selectedFileName);
+bool MainWindow::loadFile(const QString &fileName) {
+    QFile dataFile(fileName);
     if (!dataFile.open(QIODevice::ReadOnly)) {
         QMessageBox::critical(this, getLocalizedText("Ошибка", "Error"), getLocalizedText("Не удалось открыть файл", "Unable to open file"));
-        return;
+        return false;
     }
 
     QDataStream in(&dataFile);
@@ -856,7 +865,7 @@ void MainWindow::handleOpenFile() {
                 getLocalizedText("Целостность файла нарушена или файл поврежден.", "File integrity check failed.")
             );
             dataFile.close();
-            return;
+            return false;
         }
 
         // Защита от списывания: Владелец файла должен совпадать с текущим студентом.
@@ -869,7 +878,7 @@ void MainWindow::handleOpenFile() {
                 getLocalizedText("Этот файл принадлежит другому студенту (%1).\nВыполнять чужие работы запрещено.", "This file belongs to another student (%1).\nUsing someone else's work is prohibited.").arg(fileOwnerId)
             );
             dataFile.close();
-            return;
+            return false;
         }
 
         // Если залогинен преподаватель, выводим информацию об авторе
@@ -978,7 +987,7 @@ void MainWindow::handleOpenFile() {
                 getLocalizedText("Целостность файла нарушена или файл поврежден.", "File integrity check failed.")
             );
             dataFile.close();
-            return;
+            return false;
         }
 
         // Показываем преподавателю информацию об авторе
@@ -1071,6 +1080,32 @@ void MainWindow::handleOpenFile() {
     // Обновляем главное окно
     updateUserInterface();
     synchronizeTableWithProgramCounter();
+
+    return true;
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        for (const auto &url : event->mimeData()->urls()) {
+            QString path = url.toLocalFile();
+            if (path.endsWith(".pdp", Qt::CaseInsensitive)) {
+                event->acceptProposedAction();
+                return;
+            }
+        }
+    }
+    QMainWindow::dragEnterEvent(event);
+}
+
+void MainWindow::dropEvent(QDropEvent *event) {
+    for (const auto &url : event->mimeData()->urls()) {
+        QString path = url.toLocalFile();
+        if (path.endsWith(".pdp", Qt::CaseInsensitive)) {
+            loadFile(path);
+            event->acceptProposedAction();
+            break;
+        }
+    }
 }
 
 void MainWindow::handleSaveFile() {

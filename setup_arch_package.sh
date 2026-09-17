@@ -1,17 +1,17 @@
 #!/bin/bash
+set -e
 
 if [[ "$(uname)" != "Linux" ]] || ! command -v pacman > /dev/null; then
     echo "This script can only be run on Arch-based Linux!"
     exit 1
 fi
 
-
-# sudo at the beginning
+# Запрос sudo в самом начале
 sudo echo > /dev/null
 
-
+# 1. Сборка бинарника, если еще не собран
 if [[ ! -f build/PDP11 ]]; then
-    sh compile.sh || exit 1
+    bash compile.sh
 fi
 
 
@@ -22,12 +22,11 @@ cp Docs/"PDP11 RU.pdf" pdp11_pkg
 cp assets/icon.png pdp11_pkg/icon.png
 cd pdp11_pkg
 
-
-# Info about Packager
 export PACKAGER="Arta <arta@gmail.com>"
 
-
-echo '# Maintainer: Arta <arta@gmail.com>
+# 3. Генерация PKGBUILD
+cat > PKGBUILD << 'EOF'
+# Maintainer: Arta <arta@gmail.com>
 pkgname=pdp11
 pkgver=1.0.0
 pkgrel=1
@@ -68,8 +67,22 @@ prepare() {
         magick icon.png -resize "${size}x${size}" -gravity center -background transparent -extent "${size}x${size}" "icon-${size}.png"
     done
 
-    # Создание desktop-файла
-    cat > "${pkgname}.desktop" <<EOF
+    # Register .pdp MIME type
+    cat > "${pkgname}-mime.xml" <<_MIME_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+    <mime-type type="application/x-pdp">
+        <comment>PDP-11 code files</comment>
+        <comment xml:lang="ru">Файлы кода PDP-11</comment>
+        <glob pattern="*.pdp"/>
+        <glob pattern="*.PDP"/>
+        <icon name="pdp11"/>
+    </mime-type>
+</mime-info>
+_MIME_EOF
+
+    # Creating a desktop file
+    cat > "${pkgname}.desktop" <<_DESKTOP_EOF
 [Desktop Entry]
 Type=Application
 Name=Command System Emulator PDP-11
@@ -79,9 +92,9 @@ Icon=${pkgname}
 Terminal=false
 Categories=Development;Education;Emulator;
 MimeType=application/x-pdp;
-StartupWMClass=pdp11
+StartupWMClass=${pkgname}
 Keywords=pdp;pdp11;pdp-11;emulator;assembly;asm;machine;binary;эмулятор;
-EOF
+_DESKTOP_EOF
 }
 
 package() {
@@ -102,18 +115,19 @@ package() {
         install -Dm644 "icon-${size}.png" "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/${pkgname}.png"
     done
 
+    # Install MIME type
+    install -Dm644 "${pkgname}-mime.xml" "${pkgdir}/usr/share/mime/packages/${pkgname}.xml"
+
     # Installing a desktop file
     install -Dm644 "${pkgname}.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
-}' > PKGBUILD
+}
+EOF
 
-
+# 4. Сборка и установка в систему
 makepkg -si --skipinteg --noconfirm
-
 
 cd .. && rm -rf pdp11_pkg
 
-
-# Status output
 echo "
-
-Done!"
+Done!
+"
